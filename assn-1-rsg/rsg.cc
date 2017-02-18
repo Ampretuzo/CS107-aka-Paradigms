@@ -20,6 +20,8 @@ using namespace std;
 // starting non-terminal production is fixed
 #define START_NON_TERM "<start>"
 
+typedef map<string, Definition> grammar;
+
 /**
  * Takes a reference to a legitimate infile (one that's been set up
  * to layer over a file) and populates the grammar map with the
@@ -58,6 +60,17 @@ bool isTerminal(string token)
 }
 
 /*
+ * Breaks program by assert function.
+ * For example if given string is <dick> and no definition has that string as
+ * non-terminal than program is stopped.
+ */
+void checkNonTerminalValidity(string nonTerm, grammar& grammar)
+{
+  grammar::const_iterator found = grammar.find(nonTerm);
+  assert(found != grammar.end() );
+}
+
+/*
  * Depth first recursion.
  * Dives into first non-terminal occurance.
  */
@@ -72,9 +85,11 @@ void dfs(vector<string>& text, map<string, Definition>& grammar, string nonTerm)
     // this is the token under consideration
     string token = *curr;
     if(isTerminal(token) )
-    {
+    { // usual case, simple word that has to be added
       text.push_back(*curr);
     } else {
+      // first check if encountered non-terminal is a valid one
+      checkNonTerminalValidity(*curr, grammar);
       dfs(text, grammar, token);
     }
     curr++;
