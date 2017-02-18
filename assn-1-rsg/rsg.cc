@@ -113,20 +113,40 @@ void makeText(vector<string>& text, map<string, Definition>& grammar)
 }
 
 /*
+ * If next 'word' in text is comma or dot than we dont need any whitespace. In
+ * that case '\0' is returned. Otherwise - ' '.
+ */
+char correctWhitespace(vector<string>::const_iterator curr,
+  vector<string>& text)
+{
+  // if there are no more elements then just return nothing.
+  if(++curr == text.end() ) return '\0';
+  string next = *curr;
+  if(next == "." || next == ",") return '\0';
+  
+  // if current string is "." than next line
+  // should be new:
+  if(*(--curr) == ".") return '\n';
+  return ' ';
+}
+
+/*
  * This function prints out given text vector contents hopefully in a smart way,
  * that is, it determines when to do new line etc...
  */
 void printText(vector<string>& text)
 {
-  // TODO
-  // this is util version
+  // need to iterate over each each word
   vector<string>::const_iterator curr = text.begin();
   while(curr != text.end() )
   {
-    cout << *curr << ' ';
+    // first of all just print the word
+    cout << *curr;
+    // now decide if it needs to be followed by ' ' or '\n'
+    cout << correctWhitespace(curr, text);
     curr++;
   }
-  cout << endl;
+  cout << endl << endl;
 }
 
 /**
