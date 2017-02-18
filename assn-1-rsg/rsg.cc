@@ -9,9 +9,15 @@
  
 #include <map>
 #include <fstream>
+#include <string>	// just in case..
 #include "definition.h"
 #include "production.h"
 using namespace std;
+
+// number of times we have to generate texts
+#define VERSION_NUMBER 3
+// starting non-terminal production is fixed
+#define START_NON_TERM "<start>"
 
 /**
  * Takes a reference to a legitimate infile (one that's been set up
@@ -37,6 +43,27 @@ static void readGrammar(ifstream& infile, map<string, Definition>& grammar)
     Definition def(infile);
     grammar[def.getNonterminal()] = def;
   }
+}
+
+/*
+ * This function takes text vector and grammar by reference 
+ * and puts non-terminals in it. Word by word. 
+ */
+void makeText(vector<string>& text, map<string, Definition>& grammar)
+{
+  // starting production is fixed to "<start>"
+  string start(START_NON_TERM);
+  
+  // TODO
+}
+
+/*
+ * This function prints out given text vector contents hopefully in a smart way,
+ * that is, it determines when to do new line etc...
+ */
+void printText(vector<string>& text)
+{
+  // TODO
 }
 
 /**
@@ -74,6 +101,24 @@ int main(int argc, char *argv[])
   readGrammar(grammarFile, grammar);
   cout << "The grammar file called \"" << argv[1] << "\" contains "
        << grammar.size() << " definitions." << endl;
+  
+  
+  
+  
+  // iteration counter
+  int count = 0;
+  
+  do {
+    // vector in which terminals will be collected
+    vector<string> text;
+    
+    makeText(text, grammar);
+    cout << "Version #" << (count + 1) << ":   ---------------------" << endl;
+    printText(text);
+    
+    // clean text vector for further executions
+    text.clear();
+  } while(++count < VERSION_NUMBER);
   
   return 0;
 }
