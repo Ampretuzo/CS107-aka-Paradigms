@@ -10,6 +10,7 @@
 #include <map>
 #include <fstream>
 #include <string>	// just in case..
+#include <cassert>
 #include "definition.h"
 #include "production.h"
 using namespace std;
@@ -46,15 +47,54 @@ static void readGrammar(ifstream& infile, map<string, Definition>& grammar)
 }
 
 /*
+ * Easy - returns true if given string is terminal, that is, if it
+ * does not start with '<'.
+ */
+bool isTerminal(string token)
+{
+  // TODO edge cases not handled
+  assert(token.length() != 0);
+  return token[0] != '<';
+}
+
+/*
+ * Depth first recursion.
+ * Dives into first non-terminal occurance.
+ */
+void dfs(vector<string>& text, map<string, Definition>& grammar, string nonTerm)
+{
+  // take random production from grammar for given non-terminal
+  const Production& prod = grammar[nonTerm].getRandomProduction();
+  // go through its contents and dive in whenever non-terminal is encountered
+  Production::const_iterator curr = prod.begin();
+  while(curr != prod.end() )
+  {
+    // this is the token under consideration
+    string token = *curr;
+    if(isTerminal(token) )
+    {
+      text.push_back(*curr);
+    } else {
+      dfs(text, grammar, token);
+    }
+    curr++;
+  }
+  
+  return;
+}
+
+/*
  * This function takes text vector and grammar by reference 
  * and puts non-terminals in it. Word by word. 
+ * Effectively, this is recursion wrapper.
  */
 void makeText(vector<string>& text, map<string, Definition>& grammar)
 {
   // starting production is fixed to "<start>"
   string start(START_NON_TERM);
   
-  // TODO
+  // launch depth first recursion
+  dfs(text, grammar, start);
 }
 
 /*
@@ -64,6 +104,14 @@ void makeText(vector<string>& text, map<string, Definition>& grammar)
 void printText(vector<string>& text)
 {
   // TODO
+  // this is util version
+  vector<string>::const_iterator curr = text.begin();
+  while(curr != text.end() )
+  {
+    cout << *curr << ' ';
+    curr++;
+  }
+  cout << endl;
 }
 
 /**
@@ -109,6 +157,7 @@ int main(int argc, char *argv[])
   int count = 0;
   
   do {
+  
     // vector in which terminals will be collected
     vector<string> text;
     
@@ -118,6 +167,7 @@ int main(int argc, char *argv[])
     
     // clean text vector for further executions
     text.clear();
+    
   } while(++count < VERSION_NUMBER);
   
   return 0;
