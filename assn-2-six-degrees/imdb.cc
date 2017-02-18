@@ -24,8 +24,51 @@ bool imdb::good() const
 	    (movieInfo.fd == -1) ); 
 }
 
+
+
+int imdb::playerOffsetInBytes(const string& player) const
+{
+  // TODO: needs bsearch
+  return 0;
+}
+
+void imdb::getMovieOffsets(int playerOffset, vector<int>& movieOffsets) const
+{
+  // TODO
+}
+
+void imdb::pickMovieTitles(vector<int>& movieOffsets, vector<film>& films) const
+{
+  // TODO
+}
+
 // you should be implementing these two methods right here... 
-bool imdb::getCredits(const string& player, vector<film>& films) const { return false; }
+bool imdb::getCredits(const string& player, vector<film>& films) const 
+{ 
+  /*
+   * First we have to run bsearch to find where the record of given player
+   * is located.
+   * After that, we take movies he starred in by looking at offsets in movieFile
+   * and insert them in given films array.
+   */
+   
+  // get player offset in bytes
+  int playerOffset = playerOffsetInBytes(player);
+  
+  // if player is not in the database (playerOffset = -1), return false
+  if(playerOffset == -1) return false;
+  
+  // then, we pick offsets of movies given player played in
+  vector<int> movieOffsets;
+  getMovieOffsets(playerOffset, movieOffsets);
+  
+  // using those movie offsets, we pick actual films
+  pickMovieTitles(movieOffsets, films);
+   
+  // finally, if we got this far, return true 
+  return true;
+}
+
 bool imdb::getCast(const film& movie, vector<string>& players) const { return false; }
 
 imdb::~imdb()
