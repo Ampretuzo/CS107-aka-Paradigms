@@ -5,3 +5,4 @@
 # Edited files:
 !.gitignore
 !imdb.cc
+!imdb-test.cc
