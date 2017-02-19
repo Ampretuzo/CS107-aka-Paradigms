@@ -191,6 +191,34 @@ bool imdb::getCredits(const string& player, vector<film>& films) const
   return true;
 }
 
+/*
+ * This function gets pointer to movie record. 
+ * It extracts player names according to how information is laid out on data f.
+ */
+void getPlayers(const void* movieRecord, 
+  const void* actorFile, vector<string>& players)
+{
+  string title = (char*) movieRecord;
+  // after title.length() bytes there is '\0' symbol and one byte for year.
+  // then it is padded with '\0's to make full mod4byte = 0.
+  int usedBytes = title.length() + 2;
+  // used size in bytes considering padding
+  int offsetBytes = (usedBytes + 1) / 2 * 2;
+  // # of actors
+  short n_actors = * (short*) ((char*) movieRecord + offsetBytes);
+  // update offsetBytes to include 2 bytes from short
+  offsetBytes = offsetBytes + 2;
+  // consider padding
+  offsetBytes = (offsetBytes + 2) / 4 * 4;
+  // now loop and to collect actors
+  for(int i = 0; i < n_actors; i++)
+  {
+    // juggling with pointers, easy
+    int actorOffset = * ((int*) ((char*) movieRecord + offsetBytes) + i);
+    players.push_back((char*) actorFile + actorOffset);
+  }
+}
+
 bool imdb::getCast(const film& movie, vector<string>& players) const 
 {
   /*
@@ -223,7 +251,8 @@ bool imdb::getCast(const film& movie, vector<string>& players) const
   // mic check
 //  cout << movie.title <<" -- does it match? -- " << (char*) movieRecord << endl;
 
-  // TODO populate players vector by actors of given movie
+  // populate players vector by actors of given movie
+  getPlayers(movieRecord, actorFile, players);
     
   // if we get this far, movie exists
   return true; 
