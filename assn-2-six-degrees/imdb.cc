@@ -117,20 +117,34 @@ void imdb::getMovieOffsets(int playerOffset, vector<int>& movieOffsets) const
 }
 
 /*
+ * This function reads necessary data about the movie and records it 
+ * in given struct.
+ */
+void readFilm(film& film, void* film_pointer)
+{
+  // simple parsing according to how movie records are laid out
+  film.title = (char*) film_pointer; 
+  char yearByte = * ((char*) film_pointer + film.title.length() + 1);
+  film.year = 1900 + (int) yearByte;
+}
+
+/*
  * Knowing offsets of movies for movieFile data, this method collects actual
  * movies in given vector<film>.
  */
 void imdb::pickMovieTitles(vector<int>& movieOffsets, vector<film>& films) const
 {
-  // TODO
-  // iterate over movieOffsets vector
-  int i = 0;
+//  int i = 0;
   vector<int>::const_iterator it = movieOffsets.begin();
+  // iterate over movieOffsets vector and construct film structs for each
   while(it != movieOffsets.end() )
   {
     int movieOffset = *it;
-    string title = (char*) movieFile + movieOffset;
-    cout << "film# " << ++i << " : " << title << endl;
+    void* film_pointer = (void*) ((char*) movieFile + movieOffset);
+    film film;
+    readFilm(film, film_pointer);
+    films.push_back(film);
+//    cout << "film# " << ++i << " : " << film.title << endl;
     it++;
   }
 }
