@@ -100,7 +100,7 @@ void imdb::getMovieOffsets(int playerOffset, vector<int>& movieOffsets) const
   // possible mod4=0 padding into accout. Take note that occupied bytes
   // is always even!
   void* playerMovies = 
-    (void*) ((char*) actorFile + 
+    (void*) ((char*) playerRecord + 
     (/* this is even apriori */paddedLength + 
     /* 2 for short number of films*/ 2 + 
     2)/4 * 4);
@@ -112,7 +112,7 @@ void imdb::getMovieOffsets(int playerOffset, vector<int>& movieOffsets) const
   }
   // thats it (if not buggy of course)
   
-//  cout << "if this matches you input you good: " << (char*) actorFile + playerOffset << endl;
+//  cout << "if this matches you input you good: " << player << endl;
 //  cout << "this guy played in " << n_films << " movies." << endl;
 }
 
@@ -123,6 +123,16 @@ void imdb::getMovieOffsets(int playerOffset, vector<int>& movieOffsets) const
 void imdb::pickMovieTitles(vector<int>& movieOffsets, vector<film>& films) const
 {
   // TODO
+  // iterate over movieOffsets vector
+  int i = 0;
+  vector<int>::const_iterator it = movieOffsets.begin();
+  while(it != movieOffsets.end() )
+  {
+    int movieOffset = *it;
+    string title = (char*) movieFile + movieOffset;
+    cout << "film# " << ++i << " : " << title << endl;
+    it++;
+  }
 }
 
 // you should be implementing these two methods right here... 
