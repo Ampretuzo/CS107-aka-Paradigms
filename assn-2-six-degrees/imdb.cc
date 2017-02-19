@@ -11,13 +11,20 @@ const char *const imdb::kActorFileName = "actordata";
 const char *const imdb::kMovieFileName = "moviedata";
 
 /*
- * This struct helps to pass offset records.
+ * This structs help to pass offset records.
  */
 struct asd {
   const string* player;
-  const void* start;
+  const void* start;  // "file" would be a better name. refactor when on IDE
 };
-typedef struct asd playerAndRecords;
+typedef struct asd playerAndRecords;// start with uppercase next time. +bad name
+struct jkl {
+  const film* filmm;
+  const void* file;
+};
+typedef struct jkl MovieAndFile;
+
+/////
 
 imdb::imdb(const string& directory)
 {
@@ -99,6 +106,27 @@ void readFilm(film& film, void* film_pointer)
 }
 
 /*
+ * Comparator for bsearch.
+ * First argument is a void* to key, second is void* to offset number.
+ */
+int compareMovies(const void* m, const void* offsetPointer) 
+{
+  // key film
+  const MovieAndFile* mTyped = (MovieAndFile*) m;
+  const film* first = (film*) mTyped->filmm;
+  
+  // second film
+  film second;
+  int offsetInBytes = * (int*) offsetPointer;
+  void* recordPointer = (void*) ((char*) mTyped->file + offsetInBytes);
+  readFilm(second, recordPointer);
+
+  if(second == *first) return 0;
+  if(*first < second) return -1;
+  return +1;
+}
+
+/*
  * Knowing offsets of movies for movieFile data, this method collects actual
  * movies in given vector<film>.
  */
@@ -136,7 +164,7 @@ bool imdb::getCredits(const string& player, vector<film>& films) const
   // offsets 'array' starts after first 2 bytes, that is, after first int
   const void* start = (void*) ( (int*) actorFile + 1);
   // bsearch key has to carry file pointer as well, hence passing struct
-  playerAndRecords p;
+  playerAndRecords p; // struct name is bad, refactor when using IDE
   p.player = &player;
   p.start = actorFile;
   // run bsearch
@@ -168,12 +196,35 @@ bool imdb::getCast(const film& movie, vector<string>& players) const
   /*
    * First we run bsearch to find where the record of given movie is located.
    * Then, we parse that record and populate players array.
+   * Much like in getCredits method.
    */
-  // get movie offset in bytes
-  // TODO
   
-  return false;
+  const int numberOfMovies = * (int*) movieFile;
+  const void* start = (void*) ( (int*) movieFile + 1);
+  MovieAndFile m;
+  m.file = movieFile;
+  m.filmm = &movie;
+  // run bsearch
+  void* recordOffset =
+    bsearch(
+      &m,
+      start,
+      numberOfMovies,
+      sizeof (int),
+      compareMovies
+    );
+
+  if(recordOffset == NULL) return false;
   
+  // if we are here, then record exists
+  int offsetInBytes = * (int*) recordOffset;
+  void* movieRecord = (void*) ((char*) movieFile + offsetInBytes);
+  
+  // mic check
+//  cout << movie.title <<" -- does it match? -- " << (char*) movieRecord << endl;
+
+  // TODO populate players vector by actors of given movie
+    
   // if we get this far, movie exists
   return true; 
 }
