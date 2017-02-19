@@ -87,9 +87,21 @@ void imdb::getMovieOffsets(int playerOffset, vector<int>& movieOffsets) const
   int paddedLength = (player.length() + 2)/2 * 2;
   // then we can pick number of movies he played in
   int n_films = * (short*) ((char*) playerRecord + paddedLength);
+  // movie offsets are starting after number of films, but we have to take
+  // possible mod4=0 padding into accout
+  void* playerMovies = 
+    (void*) ((char*) actorFile + 
+      (paddedLength + /* 2 for short number of films*/ 2 + 4)/4 * 4);
+  // now iterate and record offsets in given vector
+  for(int i = 0; i < n_films; i++)
+  {
+    int movieOffset = * ((int*) playerMovies + i);
+    movieOffsets.push_back(movieOffset);
+  }
+  // thats it (if not buggy of course)
   
-  cout << "if this matches you input you good: " << (char*) actorFile + playerOffset << endl;
-  cout << "this guy played in " << n_films << " movies." << endl;
+//  cout << "if this matches you input you good: " << (char*) actorFile + playerOffset << endl;
+//  cout << "this guy played in " << n_films << " movies." << endl;
 }
 
 void imdb::pickMovieTitles(vector<int>& movieOffsets, vector<film>& films) const
