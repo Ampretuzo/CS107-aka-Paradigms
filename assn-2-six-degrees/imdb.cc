@@ -51,6 +51,11 @@ int compar(const void* /* we know this is struct pointer */ p,
   return key.compare(elem);
 }
 
+/*
+ * Given player name as string, this method locates corresponding record
+ * in actorFile data.
+ * Returns offset in bytes.
+ */
 int imdb::playerOffsetInBytes(const string& player) const
 {
   // first, collect variables for bsearch:
@@ -76,6 +81,10 @@ int imdb::playerOffsetInBytes(const string& player) const
   return actorLocation == NULL ? -1 : * (int*) actorLocation;
 }
 
+/*
+ * Knowing where actor record is in data, this method collects his movies
+ * as byte offsets of movieFile data in given vector<int>.
+ */
 void imdb::getMovieOffsets(int playerOffset, vector<int>& movieOffsets) const
 {
   // this is where player record starts
@@ -104,6 +113,10 @@ void imdb::getMovieOffsets(int playerOffset, vector<int>& movieOffsets) const
 //  cout << "this guy played in " << n_films << " movies." << endl;
 }
 
+/*
+ * Knowing offsets of movies for movieFile data, this method collects actual
+ * movies in given vector<film>.
+ */
 void imdb::pickMovieTitles(vector<int>& movieOffsets, vector<film>& films) const
 {
   // TODO
