@@ -4,10 +4,20 @@ using namespace std;
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdlib.h>	// bsearch
 #include "imdb.h"
 
 const char *const imdb::kActorFileName = "actordata";
 const char *const imdb::kMovieFileName = "moviedata";
+
+/*
+ * This struct helps to pass offset records.
+ */
+struct asd {
+  const string* player;
+  const void* start;
+};
+typedef struct asd playerAndRecords;
 
 imdb::imdb(const string& directory)
 {
@@ -24,17 +34,52 @@ bool imdb::good() const
 	    (movieInfo.fd == -1) ); 
 }
 
-
+/*
+ * This comparator compares two strings.
+ * First string is key and is given through *p.player.
+ * Second string is obtained by looking at given byte offset 
+ * starting from p.start pointer.
+ */
+int compar(const void* /* we know this is struct pointer */ p, 
+  const void* offsetPointer)
+{
+  const playerAndRecords* pTyped = (playerAndRecords*) p;
+  const string key = * pTyped->player;
+  int offsetInBytes = * (int*) offsetPointer;
+  string elem = (char*) pTyped->start + offsetInBytes;
+//  cout << elem << ' ' << key << endl; // track bsearch if you want
+  return key.compare(elem);
+}
 
 int imdb::playerOffsetInBytes(const string& player) const
 {
-  // TODO: needs bsearch
-  return 0;
+  // first, collect variables for bsearch:
+  // easy, first int is number of actors
+  const int numberOfActors = * (int*) actorFile;
+  // offsets 'array' starts after first 2 bytes, that is, after first int
+  const void* start = (void*) ( (int*) actorFile + 1);
+  // bsearch key has to carry file pointer as well, hence passing struct
+  playerAndRecords p;
+  p.player = &player;
+  p.start = actorFile;
+  
+  void* actorLocation = 
+    bsearch(
+      &p,  // pointer to what we are looking for
+      start,
+      numberOfActors, // easy
+      sizeof (int), // size of each element is integer
+      compar  // function that compares key to given element
+    );
+    
+  // bad style but thats it..
+  return actorLocation == NULL ? -1 : * (int*) actorLocation;
 }
 
 void imdb::getMovieOffsets(int playerOffset, vector<int>& movieOffsets) const
 {
   // TODO
+  cout << "if this matches you input you good: " << (char*) actorFile + playerOffset << endl;
 }
 
 void imdb::pickMovieTitles(vector<int>& movieOffsets, vector<film>& films) const
