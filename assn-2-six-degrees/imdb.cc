@@ -78,8 +78,18 @@ int imdb::playerOffsetInBytes(const string& player) const
 
 void imdb::getMovieOffsets(int playerOffset, vector<int>& movieOffsets) const
 {
-  // TODO
+  // this is where player record starts
+  void* playerRecord = (void*) ((char*) actorFile + playerOffset);
+  // we already had name to pass, but I think it is better to construct it anew
+  string player = (char*) playerRecord;
+  // name is padded with '\0' in case string name does not take even bytes,
+  // actual length will be
+  int paddedLength = (player.length() + 2)/2 * 2;
+  // then we can pick number of movies he played in
+  int n_films = * (short*) ((char*) playerRecord + paddedLength);
+  
   cout << "if this matches you input you good: " << (char*) actorFile + playerOffset << endl;
+  cout << "this guy played in " << n_films << " movies." << endl;
 }
 
 void imdb::pickMovieTitles(vector<int>& movieOffsets, vector<film>& films) const
