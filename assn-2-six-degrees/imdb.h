@@ -92,7 +92,6 @@ class imdb {
   /*
    * Private methods added to help implementation.
    */
-  int playerOffsetInBytes(const string& player) const;
   void getMovieOffsets(int playerOffset, vector<int>& movieOffsets) const;
   void pickMovieTitles(vector<int>& movieOffsets, vector<film>& films) const;
   

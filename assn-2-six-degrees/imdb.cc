@@ -40,7 +40,7 @@ bool imdb::good() const
  * Second string is obtained by looking at given byte offset 
  * starting from p.start pointer.
  */
-int compar(const void* /* we know this is struct pointer */ p, 
+int compareActors(const void* /* we know this is struct pointer */ p, 
   const void* offsetPointer)
 {
   const playerAndRecords* pTyped = (playerAndRecords*) p;
@@ -49,36 +49,6 @@ int compar(const void* /* we know this is struct pointer */ p,
   string elem = (char*) pTyped->start + offsetInBytes;
 //  cout << elem << ' ' << key << endl; // track bsearch if you want
   return key.compare(elem);
-}
-
-/*
- * Given player name as string, this method locates corresponding record
- * in actorFile data.
- * Returns offset in bytes.
- */
-int imdb::playerOffsetInBytes(const string& player) const
-{
-  // first, collect variables for bsearch:
-  // easy, first int is number of actors
-  const int numberOfActors = * (int*) actorFile;
-  // offsets 'array' starts after first 2 bytes, that is, after first int
-  const void* start = (void*) ( (int*) actorFile + 1);
-  // bsearch key has to carry file pointer as well, hence passing struct
-  playerAndRecords p;
-  p.player = &player;
-  p.start = actorFile;
-  
-  void* actorLocation = 
-    bsearch(
-      &p,  // pointer to what we are looking for
-      start,
-      numberOfActors, // easy
-      sizeof (int), // size of each element is integer
-      compar  // function that compares key to given element
-    );
-    
-  // bad style but thats it..
-  return actorLocation == NULL ? -1 : * (int*) actorLocation;
 }
 
 /*
@@ -158,16 +128,33 @@ bool imdb::getCredits(const string& player, vector<film>& films) const
    * After that, we take movies he starred in by looking at offsets in movieFile
    * and insert them in given films array.
    */
-   
-  // get player offset in bytes
-  int playerOffset = playerOffsetInBytes(player);
   
-  // if player is not in the database (playerOffset = -1), return false
-  if(playerOffset == -1) return false;
+  // first, collect variables for bsearch:
+  
+  // easy, first int is number of actors
+  const int numberOfActors = * (int*) actorFile;
+  // offsets 'array' starts after first 2 bytes, that is, after first int
+  const void* start = (void*) ( (int*) actorFile + 1);
+  // bsearch key has to carry file pointer as well, hence passing struct
+  playerAndRecords p;
+  p.player = &player;
+  p.start = actorFile;
+  // run bsearch
+  void* recordOffset = 
+    bsearch(
+      &p,  // pointer to what we are looking for
+      start,
+      numberOfActors, // easy
+      sizeof (int), // size of each element is integer
+      compareActors  // function that compares key to given element
+    ); 
+   
+  // if player is not in the database, return false
+  if(recordOffset == NULL) return false;
   
   // then, we pick offsets of movies given player played in
   vector<int> movieOffsets;
-  getMovieOffsets(playerOffset, movieOffsets);
+  getMovieOffsets(* (int*) recordOffset, movieOffsets);
   
   // using those movie offsets, we pick actual films
   pickMovieTitles(movieOffsets, films);
@@ -176,7 +163,20 @@ bool imdb::getCredits(const string& player, vector<film>& films) const
   return true;
 }
 
-bool imdb::getCast(const film& movie, vector<string>& players) const { return false; }
+bool imdb::getCast(const film& movie, vector<string>& players) const 
+{
+  /*
+   * First we run bsearch to find where the record of given movie is located.
+   * Then, we parse that record and populate players array.
+   */
+  // get movie offset in bytes
+  // TODO
+  
+  return false;
+  
+  // if we get this far, movie exists
+  return true; 
+}
 
 imdb::~imdb()
 {
