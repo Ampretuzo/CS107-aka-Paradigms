@@ -97,10 +97,13 @@ void imdb::getMovieOffsets(int playerOffset, vector<int>& movieOffsets) const
   // then we can pick number of movies he played in
   int n_films = * (short*) ((char*) playerRecord + paddedLength);
   // movie offsets are starting after number of films, but we have to take
-  // possible mod4=0 padding into accout
+  // possible mod4=0 padding into accout. Take note that occupied bytes
+  // is always even!
   void* playerMovies = 
     (void*) ((char*) actorFile + 
-      (paddedLength + /* 2 for short number of films*/ 2 + 4)/4 * 4);
+    (/* this is even apriori */paddedLength + 
+    /* 2 for short number of films*/ 2 + 
+    2)/4 * 4);
   // now iterate and record offsets in given vector
   for(int i = 0; i < n_films; i++)
   {
