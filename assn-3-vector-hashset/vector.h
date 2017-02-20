@@ -68,10 +68,11 @@ typedef void (*VectorFreeFunction)(void *elemAddr);
  */
 
 typedef struct {
-  void* start;
+  void* start;  // used array base pointer
   int elemSize;
   int allocLen;
-  int allocIncLength; // increment length in quantums
+//  int allocIncLen;  // increment length in quantums, since it is a function of
+                      // state there is no need to store it.
   int logLen;
   VectorFreeFunction* freeElem; // pointer to freefn
 } vector;
