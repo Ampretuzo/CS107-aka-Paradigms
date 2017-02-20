@@ -16,47 +16,48 @@ using namespace std;
  * At this point we already know that two actors are different and they are
  * present in the database.
  * ...
+ * This function does bfs on actors.
  */
 bool generateShortestPath(const string& target, path& p, const imdb& db)
 {
-  // extract source player name from p
-  string source = p.getLastPlayer();  // assuming path is empty, which it should
-  path p0(source);  // genesis path to build upon
+  assert(p.getLength() == 0);
+  // initial path to start bfs from
+  path p0 = path(p);
   /*
-   * We are writing bfs search.
-   * Hence queue.
+   * bfs search - hence, queue.
    */
   queue<path> q;
   q.push(p0);
   /*
-   * To avoid possible infinite search we have to remember which actors have
-   * already been observed.
+   * To avoid unnecessary search time we have to remember which actors
+   * and moies have already been observed.
    * Using set.
    */
   set<string> seenActors;
-  seenActors.insert(source);
-  /*
-   * We should also remember seen films.
-   */
-  set<film> seenMovies;
+  // p is expected to contain only single source actor
+  seenActors.insert(p0.getLastPlayer() );
+  set<film> seenMovies; // no movie seen yet
    
+  // actual bfs
   while(true)
   {
-    // safety measure
+    // safety measure. it is very unlikely that this would happen but anyway..
     if(q.size() == 0) return false;
     // take front path
     path queuedPath = q.front();
     q.pop();
-    // since size of paths monotonically increases, it is safe to check front
-    // paths size
+    // since size of paths increases monotonically, it is safe to check only
+    // front paths size. if it is longer than we want, paths after it in
+    // the queue will be guaranteed to be longer than that.
+    // we should stop searching at this point
     if(queuedPath.getLength() == HOW_FAR) return false;
     // take name of last actor in path
-    /* const? */ string lastActor = queuedPath.getLastPlayer();
+    const string lastActor = queuedPath.getLastPlayer();
     // if this is the path, last player will be target
     if(target.compare(lastActor) == 0)
     {
-      cout << queuedPath << endl;
-      return false;
+      p = path(queuedPath);
+      return true;
     }
     // if not, we move forward by generating child paths and enqueueing them
     vector<film> moviesByLastActor;
@@ -65,9 +66,9 @@ bool generateShortestPath(const string& target, path& p, const imdb& db)
     while(it != moviesByLastActor.end() )
     {
       film movieByLastActor = *it++;
-      // if set already contains *it film then move forward
+      // if set already contains movieByLastActor film then move forward
       if(seenMovies.insert(movieByLastActor).second == false) continue;
-      // if insert was successful, take actors
+      // if insert was successful, take actors of that movie
       vector<string> costars;
       db.getCast(movieByLastActor, costars);
       vector<string>::const_iterator itActor = costars.begin();
