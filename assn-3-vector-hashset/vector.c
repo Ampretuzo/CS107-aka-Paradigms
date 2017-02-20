@@ -6,6 +6,62 @@
 
 #define DEFAULT_ALLOC_SIZE 16
 
+
+/* helpers */
+
+// returns pointer to elem on given position <should this be inline?>
+static void* elemAddr(const vector* v, int position)
+{
+  return (char*) v->start + v->elemSize * position;
+}
+
+// this function asserts that given position is >= 0 and < logLen
+static /* private? */ void assertPosInBounds(const vector *v, int position)
+{
+  assert(position >= 0);
+  assert(position < v->logLen);
+}
+
+static void* freePosition(vector* v, int position)
+{
+  void* dest = elemAddr(v, position);
+  free(dest);
+  return dest;
+}
+
+// this function adds capacity to underlying array if allocated mem not enough
+static void resizeIfSaturated(vector *v)
+{
+  if(v->allocLen != v->logLen) return;  // nothing to do
+  int newAllocLen = (v->allocLen + v->allocIncLen) * v->elemSize;
+  void* newStart = 
+    realloc(v->start, newAllocLen);
+  assert(newStart != NULL);
+  v->allocLen += v->allocIncLen;
+}
+
+// this function shifts array tail left or right.
+// ! >>> allocations and mem free must be handled beforehand <<< !
+// when l_ir_r is true shift is to the right
+static void shiftTailOneStep(vector *v, int position, bool l_or_r)
+{
+  int hop = -1;
+  if(l_or_r) hop = 1; 
+  void* src = elemAddr(v, position);
+  void* dest = (void*) ((char*) src + v->elemSize * hop);
+  size_t n = v->elemSize * (v->logLen - position);
+  dest = memmove(dest, src, n);
+  assert(dest != NULL);
+  v->logLen += hop;
+}
+
+/* end helpers */
+
+
+
+
+
+
 void VectorNew(vector *v, int elemSize, VectorFreeFunction freeFn, int initialAllocation)
 {
 
@@ -27,34 +83,19 @@ void VectorNew(vector *v, int elemSize, VectorFreeFunction freeFn, int initialAl
 
 void VectorDispose(vector *v)
 {
+  // free elements
   for(int i = 0; i < v->logLen; i++)
-  {
-    void* elemAddr = (char*) v->start + i*v->elemSize;
-    (* v->freeElem)(elemAddr);
-  }
+    (* v->freeElem)(elemAddr(v, i) );
+  // free alloc array
   free(v->start);
 }
 
 int VectorLength(const vector *v) { return v->logLen; }
 
-// this function asserts that given position is >= 0 and < logLen
-static /* private? */ void assertPosInBounds(const vector *v, int position)
-{
-  assert(position >= 0);
-  assert(position < v->logLen);
-}
-
-void *VectorNth(const vector *v, int position)
+void* VectorNth(const vector *v, int position)
 {
   assertPosInBounds(v, position);
-  return (char*) v->start + position * v->elemSize;
-}
-
-static void* freePosition(vector *v, int position)
-{
-  void* dest = (void*) ((char*) v->start + v->elemSize * position);
-  free(dest);
-  return dest;
+  return elemAddr(v, position);
 }
 
 void VectorReplace(vector *v, const void *elemAddr, int position)
@@ -67,46 +108,22 @@ void VectorReplace(vector *v, const void *elemAddr, int position)
   assert(dest != NULL);
 }
 
-// this function adds capacity to underlying array if allocated mem not enough
-static void resizeIfSaturated(vector *v)
-{
-  void* newStart = 
-    realloc(v->start, (v->allocLen + v->allocIncLen) * v->elemSize);
-  assert(newStart != NULL);
-  v->allocLen += v->allocIncLen;
-}
-
-// this function shifts every element from position left or right.
-// ! >>> allocations and mem free must be handled beforehand <<< !
-// when l_ir_r is true shift is to the right
-static void shiftTailOneStep(vector *v, int position, bool l_or_r)
-{
-  int hop = -1;
-  if(l_or_r) hop = 1; 
-  void* src = (void*) ((char*) v->start + v->elemSize * position);
-  void* dest = (void*) ((char*) src + v->elemSize * hop);
-  size_t n = v->elemSize * (v->logLen - position);
-  dest = memmove(dest, src, n);
-  assert(dest != NULL);
-  v->logLen += hop;
-}
-
-void VectorInsert(vector *v, const void *elemAddr, int position)
+void VectorInsert(vector *v, const void *elemAddr1, int position)
 {
   assertPosInBounds(v, position);
   resizeIfSaturated(v);
   // move memory after position one quantum right
   shiftTailOneStep(v, position, true);
-  void* dest = (void*) ((char*) v->start + v->elemSize * position);
+  void* dest = elemAddr(v, position);
   dest = memcpy(dest, elemAddr, v->elemSize);
   assert(dest != NULL);
 }
 
-void VectorAppend(vector *v, const void *elemAddr)
+void VectorAppend(vector *v, const void *elemAddr1)
 {
-  if(v->logLen == v->allocLen)  resizeIfSaturated(v);
+  resizeIfSaturated(v);
   // now feel free to append
-  void* dest = (void*) ((char*) v->start + v->elemSize * v->logLen);
+  void* dest = elemAddr(v, v->logLen);
   dest = memcpy(dest, elemAddr, v->elemSize);
   assert(dest != NULL);
   v->logLen++;
