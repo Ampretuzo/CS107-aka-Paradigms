@@ -6,4 +6,4 @@
 !.gitignore
 !hashset.c
 !vector.c
-
+!vector.h

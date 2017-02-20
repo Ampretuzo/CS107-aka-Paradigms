@@ -4,6 +4,8 @@
 #include <string.h>
 #include <assert.h>
 
+#define DEFAULT_ALLOC_SIZE 16
+
 void VectorNew(vector *v, int elemSize, VectorFreeFunction freeFn, int initialAllocation)
 {}
 
