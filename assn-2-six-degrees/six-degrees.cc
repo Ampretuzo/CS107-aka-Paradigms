@@ -1,21 +1,89 @@
 #include <vector>
-#include <list>
+#include <queue>  // ill use queue instead of list
 #include <set>
 #include <string>
 #include <iostream>
 #include <iomanip>
+#include <assert.h>
 #include "imdb.h"
 #include "path.h"
 using namespace std;
 
+#define HOW_FAR 6
 
 /*
  * ...
+ * At this point we already know that two actors are different and they are
+ * present in the database.
+ * ...
  */
-bool generateShortestPath(const string& target, path& p)
+bool generateShortestPath(const string& target, path& p, const imdb& db)
 {
-  // TODO
-  return true;
+  // extract source player name from p
+  string source = p.getLastPlayer();  // assuming path is empty, which it should
+  path p0(source);  // genesis path to build upon
+  /*
+   * We are writing bfs search.
+   * Hence queue.
+   */
+  queue<path> q;
+  q.push(p0);
+  /*
+   * To avoid possible infinite search we have to remember which actors have
+   * already been observed.
+   * Using set.
+   */
+  set<string> seenActors;
+  seenActors.insert(source);
+  /*
+   * We should also remember seen films.
+   */
+  set<film> seenMovies;
+   
+  while(true)
+  {
+    // safety measure
+    if(q.size() == 0) return false;
+    // take front path
+    path queuedPath = q.front();
+    q.pop();
+    // since size of paths monotonically increases, it is safe to check front
+    // paths size
+    if(queuedPath.getLength() == HOW_FAR) return false;
+    // take name of last actor in path
+    /* const? */ string lastActor = queuedPath.getLastPlayer();
+    // if this is the path, last player will be target
+    if(target.compare(lastActor) == 0)
+    {
+      cout << queuedPath << endl;
+      return false;
+    }
+    // if not, we move forward by generating child paths and enqueueing them
+    vector<film> moviesByLastActor;
+    db.getCredits(lastActor, moviesByLastActor);
+    vector<film>::const_iterator it = moviesByLastActor.begin();
+    while(it != moviesByLastActor.end() )
+    {
+      film movieByLastActor = *it++;
+      // if set already contains *it film then move forward
+      if(seenMovies.insert(movieByLastActor).second == false) continue;
+      // if insert was successful, take actors
+      vector<string> costars;
+      db.getCast(movieByLastActor, costars);
+      vector<string>::const_iterator itActor = costars.begin();
+      while(itActor != costars.end() )
+      {
+        string coactor = * itActor++;
+        // if seen actors set already contains coactor then move forward
+        if(seenActors.insert(coactor).second == false) continue;
+        // if insert was successful, build new path and queue it
+        path newPath = path(queuedPath);
+        newPath.addConnection(movieByLastActor, coactor);
+        q.push(newPath);
+      }
+    }
+  }
+  
 }
 
 
@@ -83,7 +151,7 @@ int main(int argc, const char *argv[])
       cout << "Good one.  This is only interesting if you specify two different people." << endl;
     } else {
       path p(source);
-      if(!generateShortestPath(target, p) )
+      if(!generateShortestPath(target, p, db) )
         cout << endl << "No path between those two people could be found." << endl << endl;
       else
         cout << p << endl;
