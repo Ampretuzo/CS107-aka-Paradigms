@@ -28,8 +28,7 @@ void VectorNew(vector *v, int elemSize, VectorFreeFunction freeFn, int initialAl
 void VectorDispose(vector *v)
 {}
 
-int VectorLength(const vector *v)
-{ return 0; }
+int VectorLength(const vector *v) { return v->logLen; }
 
 void *VectorNth(const vector *v, int position)
 { return NULL; }
