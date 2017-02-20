@@ -38,7 +38,11 @@ void VectorDispose(vector *v)
 int VectorLength(const vector *v) { return v->logLen; }
 
 void *VectorNth(const vector *v, int position)
-{ return NULL; }
+{
+  assert(position >= 0);
+  assert(position <= v->logLen - 1);
+  return (char*) v->start + position * v->elemSize;
+}
 
 void VectorReplace(vector *v, const void *elemAddr, int position)
 {}
