@@ -17,7 +17,7 @@ void VectorNew(vector *v, int elemSize, VectorFreeFunction freeFn, int initialAl
   assert(initialAllocation >= 0);
   if(initialAllocation == 0) initialAllocation = DEFAULT_ALLOC_SIZE;
   v->allocLen = initialAllocation;
-/*  v->allocIncLen = initialAllocation;*/
+  v->allocIncLen = initialAllocation;
   
   v->freeElem = &freeFn;
   
@@ -48,10 +48,25 @@ void VectorReplace(vector *v, const void *elemAddr, int position)
 {}
 
 void VectorInsert(vector *v, const void *elemAddr, int position)
-{}
+{
+  // TODO
+}
 
 void VectorAppend(vector *v, const void *elemAddr)
-{}
+{
+  if(v->logLen == v->allocLen)  // resize if necessary
+  {
+    void* newStart = 
+      realloc(v->start, (v->allocLen + v->allocIncLen) * v->elemSize);
+    assert(newStart != NULL);
+    v->allocLen += v->allocIncLen;
+  }
+  // now feel free to append
+  void* dest = (void*) ((char*) v->start + v->elemSize * v->logLen);
+  dest = memcpy(dest, elemAddr, v->elemSize);
+  assert(dest != NULL);
+  v->logLen++;
+}
 
 void VectorDelete(vector *v, int position)
 {}

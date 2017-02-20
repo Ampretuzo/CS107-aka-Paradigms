@@ -71,8 +71,7 @@ typedef struct {
   void* start;  // used array base pointer
   int elemSize;
   int allocLen;
-//  int allocIncLen;  // increment length in quantums, since it is a function of
-                      // state there is no need to store it.
+  int allocIncLen;  // increment length in quantums
   int logLen;
   VectorFreeFunction* freeElem; // pointer to freefn
 } vector;
