@@ -26,7 +26,14 @@ void VectorNew(vector *v, int elemSize, VectorFreeFunction freeFn, int initialAl
 }
 
 void VectorDispose(vector *v)
-{}
+{
+  for(int i = 0; i < v->logLen; i++)
+  {
+    void* elemAddr = (char*) v->start + i*v->elemSize;
+    (* v->freeElem)(elemAddr);
+  }
+  free(v->start);
+}
 
 int VectorLength(const vector *v) { return v->logLen; }
 
