@@ -50,12 +50,18 @@ void *VectorNth(const vector *v, int position)
   return (char*) v->start + position * v->elemSize;
 }
 
+static void* freePosition(vector *v, int position)
+{
+  void* dest = (void*) ((char*) v->start + v->elemSize * position);
+  free(dest);
+  return dest;
+}
+
 void VectorReplace(vector *v, const void *elemAddr, int position)
 {
   assertPosInBounds(v, position);
   // free host memory loc
-  void* dest = (void*) ((char*) v->start + v->elemSize * position);
-  free(dest);
+  void* dest = freePosition(v, position);
   // copy new elem
   dest = memcpy(dest, elemAddr, v->elemSize);
   assert(dest != NULL);
@@ -70,17 +76,30 @@ static void resizeIfSaturated(vector *v)
   v->allocLen += v->allocIncLen;
 }
 
+// this function shifts every element from position left or right.
+// ! >>> allocations and mem free must be handled beforehand <<< !
+// when l_ir_r is true shift is to the right
+static void shiftTailOneStep(vector *v, int position, bool l_or_r)
+{
+  int hop = -1;
+  if(l_or_r) hop = 1; 
+  void* src = (void*) ((char*) v->start + v->elemSize * position);
+  void* dest = (void*) ((char*) src + v->elemSize * hop);
+  size_t n = v->elemSize * (v->logLen - position);
+  dest = memmove(dest, src, n);
+  assert(dest != NULL);
+  v->logLen += hop;
+}
+
 void VectorInsert(vector *v, const void *elemAddr, int position)
 {
   assertPosInBounds(v, position);
   resizeIfSaturated(v);
   // move memory after position one quantum right
-  void* src = (void*) ((char*) v->start + v->elemSize * position);
-  void* dest = (void*) ((char*) src + v->elemSize);
-  size_t n = v->elemSize * (v->logLen - position);
-  dest = memmove(dest, src, n);
+  shiftTailOneStep(v, position, true);
+  void* dest = (void*) ((char*) v->start + v->elemSize * position);
+  dest = memcpy(dest, elemAddr, v->elemSize);
   assert(dest != NULL);
-  v->logLen++;
 }
 
 void VectorAppend(vector *v, const void *elemAddr)
@@ -94,7 +113,12 @@ void VectorAppend(vector *v, const void *elemAddr)
 }
 
 void VectorDelete(vector *v, int position)
-{}
+{
+  assertPosInBounds(v, position);
+  freePosition(v, position);
+  // move everything after position one quantum left
+  shiftTailOneStep(v, position, false);
+}
 
 void VectorSort(vector *v, VectorCompareFunction compare)
 {}
