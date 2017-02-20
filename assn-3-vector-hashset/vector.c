@@ -25,7 +25,7 @@ static /* private? */ void assertPosInBounds(const vector *v, int position)
 static void* freePosition(vector* v, int position)
 {
   void* dest = elemAddr(v, position);
-  free(dest);
+  (* v->freeElem)(dest);
   return dest;
 }
 
@@ -85,7 +85,7 @@ void VectorDispose(vector *v)
 {
   // free elements
   for(int i = 0; i < v->logLen; i++)
-    (* v->freeElem)(elemAddr(v, i) );
+    freePosition(v, i);
   // free alloc array
   free(v->start);
 }
