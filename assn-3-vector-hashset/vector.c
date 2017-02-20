@@ -37,30 +37,47 @@ void VectorDispose(vector *v)
 
 int VectorLength(const vector *v) { return v->logLen; }
 
-void *VectorNth(const vector *v, int position)
+// this function asserts that given position is >= 0 and < logLen
+static /* private? */ void assertPosInBounds(const vector *v, int position)
 {
   assert(position >= 0);
-  assert(position <= v->logLen - 1);
+  assert(position < v->logLen);
+}
+
+void *VectorNth(const vector *v, int position)
+{
+  assertPosInBounds(v, position);
   return (char*) v->start + position * v->elemSize;
 }
 
 void VectorReplace(vector *v, const void *elemAddr, int position)
 {}
 
+// this function adds capacity to underlying array if allocated mem not enough
+static void resizeIfSaturated(vector *v)
+{
+  void* newStart = 
+    realloc(v->start, (v->allocLen + v->allocIncLen) * v->elemSize);
+  assert(newStart != NULL);
+  v->allocLen += v->allocIncLen;
+}
+
 void VectorInsert(vector *v, const void *elemAddr, int position)
 {
-  // TODO
+  assertPosInBounds(v, position);
+  resizeIfSaturated(v);
+  // move memory after position one quantum right
+  void* src = (void*) ((char*) v->start + v->elemSize * position);
+  void* dest = (void*) ((char*) src + v->elemSize);
+  size_t n = v->elemSize * (v->logLen - position);
+  dest = memmove(dest, src, n);
+  assert(dest != NULL);
+  v->logLen++;
 }
 
 void VectorAppend(vector *v, const void *elemAddr)
 {
-  if(v->logLen == v->allocLen)  // resize if necessary
-  {
-    void* newStart = 
-      realloc(v->start, (v->allocLen + v->allocIncLen) * v->elemSize);
-    assert(newStart != NULL);
-    v->allocLen += v->allocIncLen;
-  }
+  if(v->logLen == v->allocLen)  resizeIfSaturated(v);
   // now feel free to append
   void* dest = (void*) ((char*) v->start + v->elemSize * v->logLen);
   dest = memcpy(dest, elemAddr, v->elemSize);
