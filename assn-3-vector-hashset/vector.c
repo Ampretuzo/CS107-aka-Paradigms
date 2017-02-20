@@ -51,7 +51,15 @@ void *VectorNth(const vector *v, int position)
 }
 
 void VectorReplace(vector *v, const void *elemAddr, int position)
-{}
+{
+  assertPosInBounds(v, position);
+  // free host memory loc
+  void* dest = (void*) ((char*) v->start + v->elemSize * position);
+  free(dest);
+  // copy new elem
+  dest = memcpy(dest, elemAddr, v->elemSize);
+  assert(dest != NULL);
+}
 
 // this function adds capacity to underlying array if allocated mem not enough
 static void resizeIfSaturated(vector *v)
