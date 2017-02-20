@@ -141,7 +141,10 @@ void VectorSort(vector *v, VectorCompareFunction compare)
 {}
 
 void VectorMap(vector *v, VectorMapFunction mapFn, void *auxData)
-{}
+{
+  for(int i = 0; i < v->logLen; i++)
+    (* mapFn) (elemAddr(v, i), auxData);
+}
 
 static const int kNotFound = -1;
 int VectorSearch(const vector *v, const void *key, VectorCompareFunction searchFn, int startIndex, bool isSorted)
