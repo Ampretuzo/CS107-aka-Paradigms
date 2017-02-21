@@ -37,6 +37,16 @@ static void disposeVectors(hashset* h)
 }
 
 // TODO unite initVectors and disposeVectors in some sort of map function
+
+// returns corret vector to insert into for convenience
+static vector* assertElem(const hashset* h, const void* elemAddr)
+{
+  assert(elemAddr != NULL);
+  int hash = (* h->hashfn)(elemAddr, h->numBuckets);
+  assert(hash >= 0);
+  assert(hash < h->numBuckets);
+  return (vector*) h->start + hash;
+}
  
 /* helpers end */
 
@@ -78,11 +88,7 @@ void HashSetMap(hashset *h, HashSetMapFunction mapfn, void *auxData)
 /* this function must leave vector sorted! */
 void HashSetEnter(hashset *h, const void *elemAddr)
 {
-  assert(elemAddr != NULL);
-  int hash = (* h->hashfn)(elemAddr, h->numBuckets);
-  assert(hash >= 0);
-  assert(hash < h->numBuckets);
-  vector* v = (vector*) h->start + hash;  // vector* to insert into
+  vector* v = assertElem(h, elemAddr);  // vector* to insert into
   // if an equal element is present replace it 
   int pos = VectorSearch(v, elemAddr, h->comparefn, 0, true);
   if(pos != -1)
@@ -96,5 +102,12 @@ leaves vector sorted. Needs bsearch to find correct position. */
   VectorSort(v, h->comparefn);
 }
 
+/* Pointer returned from this becomes invalid after operations on hashset and*/
+/* will damage structure. */
 void *HashSetLookup(const hashset *h, const void *elemAddr)
-{ return NULL; }
+{
+  vector* v = assertElem(h, elemAddr);
+  int pos = VectorSearch(v, elemAddr, h->comparefn, 0, true);
+  if(pos == -1) return NULL;
+  return VectorNth(v, pos);
+}
