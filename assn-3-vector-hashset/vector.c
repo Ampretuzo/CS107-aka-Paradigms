@@ -33,11 +33,12 @@ static void* freePosition(vector* v, int position)
 static void resizeIfSaturated(vector *v)
 {
   if(v->allocLen != v->logLen) return;  // nothing to do
-  int newAllocLen = (v->allocLen + v->allocIncLen) * v->elemSize;
+  int newAllocLen = v->allocLen + v->allocIncLen;
   void* newStart = 
-    realloc(v->start, newAllocLen);
+    realloc(v->start, v->elemSize * newAllocLen);
   assert(newStart != NULL);
   v->allocLen += v->allocIncLen;
+  v->start = newStart;  // this was the bug
 }
 
 // this function shifts array tail left or right.
@@ -124,7 +125,7 @@ void VectorAppend(vector *v, const void *elemAddr1)
   resizeIfSaturated(v);
   // now feel free to append
   void* dest = elemAddr(v, v->logLen);
-  dest = memcpy(dest, elemAddr, v->elemSize);
+  dest = memcpy(dest, elemAddr1, v->elemSize);
   assert(dest != NULL);
   v->logLen++;
 }
