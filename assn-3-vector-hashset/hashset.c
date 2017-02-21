@@ -29,7 +29,14 @@ static void initVectors(hashset* h)
       HEURISTIC_VEC_SIZE
     );
 }
- 
+
+static void disposeVectors(hashset* h)
+{
+  for(int i = 0; i < h->numBuckets; i++)
+    VectorDispose( (void*) ( (char*) h->start + i * sizeof(vector) ) );
+}
+
+// TODO unite initVectors and disposeVectors in some sort of map function
  
 /* helpers end */
 
@@ -51,7 +58,11 @@ void HashSetNew(hashset *h, int elemSize, int numBuckets,
 }
 
 void HashSetDispose(hashset *h)
-{}
+{
+  // send dispose message to vectors first
+  disposeVectors(h);
+  free(h->start);
+}
 
 int HashSetCount(const hashset *h)
 { return 0; }
