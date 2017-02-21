@@ -36,7 +36,8 @@ static void disposeVectors(hashset* h)
     VectorDispose( (vector*) h->start + i );
 }
 
-// TODO unite initVectors and disposeVectors in some sort of map function
+/* TODO unite initVectors and disposeVectors in some sort of map function. */
+/* Actually, not worth it, since some additional structs will be needed.. */
 
 // returns corret vector to insert into for convenience
 static vector* assertElem(const hashset* h, const void* elemAddr)
@@ -100,10 +101,10 @@ void HashSetEnter(hashset *h, const void *elemAddr)
     VectorReplace(v, elemAddr, pos);  // this leaves vector sorted
     return;
   }
-/*  TODO code below should be optimized by inserting at positions which 
-leaves vector sorted. Needs bsearch to find correct position. */
-  VectorAppend(v, elemAddr);
-  VectorSort(v, h->comparefn);
+/* legacy O(n log n) code */
+/*  VectorAppend(v, elemAddr);*/
+/*  VectorSort(v, h->comparefn);*/
+  VectorInsertSorted(v, elemAddr, h->comparefn);
 }
 
 /* Pointer returned from this becomes invalid after operations on hashset and*/

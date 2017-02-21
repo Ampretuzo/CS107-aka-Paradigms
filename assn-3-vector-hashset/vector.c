@@ -64,6 +64,24 @@ static int getIndex(const vector* v, void* base)
   return bytesDist / v->elemSize;
 }
 
+/* returns position at which inserting specified key in array will not*/
+/* violate array ordering.*/
+/* follows bsearch prototype.   */
+static const void* bsearch1(const void *key, const void *base,
+  size_t nmemb, size_t size,
+  int (*compar)(const void *, const void *) )
+{
+  // base case
+  if(nmemb == 0) return base; // bsearch returns NULL in this case
+  void* mid = (void*) ((char*) base + (nmemb / 2) * size);
+  int cmp = (*compar)(key, mid);
+  if(cmp == 0) return mid;
+  return cmp < 0 ? 
+    bsearch1(key, base, nmemb/2, size, compar) : 
+    bsearch1(key, (char*) mid + size, nmemb - nmemb/2 - 1, size, compar);
+}
+
+
 /* end helpers */
 
 
@@ -131,6 +149,15 @@ void VectorInsert(vector *v, const void *elemAddr1, int position)
   void* dest = elemAddr(v, position);
   dest = memcpy(dest, elemAddr1, v->elemSize);
   assert(dest != NULL);
+}
+
+void VectorInsertSorted(vector *v, const void *elemAddr, 
+  VectorCompareFunction searchFn)
+{
+  assert(elemAddr != NULL);
+  const void* there = bsearch1(elemAddr, v->start, v->logLen, v->elemSize, searchFn);
+  int pos = ((char*) there - (char*) v->start) / v->elemSize;
+  VectorInsert(v, elemAddr, pos);
 }
 
 void VectorAppend(vector *v, const void *elemAddr1)
