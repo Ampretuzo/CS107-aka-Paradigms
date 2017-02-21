@@ -144,7 +144,7 @@ void VectorDelete(vector *v, int position)
   assertPosInBounds(v, position);
   freePosition(v, position);
   // move everything after position one quantum left
-  shiftTailOneStep(v, position, false);
+  shiftTailOneStep(v, position + 1, false);
 }
 
 void VectorSort(vector *v, VectorCompareFunction compare)
