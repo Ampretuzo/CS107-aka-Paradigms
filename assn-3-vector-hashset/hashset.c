@@ -75,8 +75,26 @@ int HashSetCount(const hashset *h)
 void HashSetMap(hashset *h, HashSetMapFunction mapfn, void *auxData)
 {}
 
+/* this function must leave vector sorted! */
 void HashSetEnter(hashset *h, const void *elemAddr)
-{}
+{
+  assert(elemAddr != NULL);
+  int hash = (* h->hashfn)(elemAddr, h->numBuckets);
+  assert(hash >= 0);
+  assert(hash < h->numBuckets);
+  vector* v = (vector*) h->start + hash;  // vector* to insert into
+  // if an equal element is present replace it 
+  int pos = VectorSearch(v, elemAddr, h->comparefn, 0, true);
+  if(pos != -1)
+  {
+    VectorReplace(v, elemAddr, pos);  // this leaves vector sorted
+    return;
+  }
+/*  TODO code below should be optimized by inserting at positions which 
+leaves vector sorted. Needs bsearch to find correct position. */
+  VectorAppend(v, elemAddr);
+  VectorSort(v, h->comparefn);
+}
 
 void *HashSetLookup(const hashset *h, const void *elemAddr)
 { return NULL; }
