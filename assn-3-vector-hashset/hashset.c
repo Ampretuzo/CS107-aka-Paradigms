@@ -65,7 +65,12 @@ void HashSetDispose(hashset *h)
 }
 
 int HashSetCount(const hashset *h)
-{ return 0; }
+{
+  int cnt = 0;
+  for(int i = 0; i < h->numBuckets; i++)
+    cnt += VectorLength( (void*) ( (char*) h->start + i * sizeof(vector) ) );
+  return cnt;
+}
 
 void HashSetMap(hashset *h, HashSetMapFunction mapfn, void *auxData)
 {}
