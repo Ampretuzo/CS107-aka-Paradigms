@@ -73,7 +73,7 @@ typedef struct {
   int allocLen;
   int allocIncLen;  // increment length in quantums
   int logLen;
-  VectorFreeFunction* freeElem; // pointer to freefn
+  VectorFreeFunction freeElem; // pointer to freefn
 } vector;
 
 /** 

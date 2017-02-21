@@ -85,7 +85,7 @@ void VectorNew(vector *v, int elemSize,
   v->allocLen = initialAllocation;
   v->allocIncLen = initialAllocation;
   
-  v->freeElem = &freeFn;
+  v->freeElem = freeFn;
   
   v->start = calloc(v->allocLen, v->elemSize);
   
