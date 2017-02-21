@@ -25,7 +25,7 @@ static /* private? */ void assertPosInBounds(const vector *v, int position)
 static void* freePosition(vector* v, int position)
 {
   void* dest = elemAddr(v, position);
-  (* v->freeElem)(dest);
+  if(v->freeElem != NULL) (* v->freeElem)(dest);
   return dest;
 }
 
