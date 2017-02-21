@@ -135,12 +135,16 @@ void VectorInsert(vector *v, const void *elemAddr1, int position)
 
 void VectorAppend(vector *v, const void *elemAddr1)
 {
-  resizeIfSaturated(v);
-  // now feel free to append
-  void* dest = elemAddr(v, v->logLen);
-  dest = memcpy(dest, elemAddr1, v->elemSize);
-  assert(dest != NULL);
-  v->logLen++;
+/*  resizeIfSaturated(v);*/
+/*  // now feel free to append*/
+/*  void* dest = elemAddr(v, v->logLen);*/
+/*  dest = memcpy(dest, elemAddr1, v->elemSize);*/
+/*  assert(dest != NULL);*/
+/*  v->logLen++;*/
+  // it makes more sense to just use VectorInsert.
+  // only redundant call is shiftTailOneStep, which only decreases performance
+  // by negligible O(1), while code becomes much cleaner.
+  VectorInsert(v, elemAddr1, v->logLen);
 }
 
 void VectorDelete(vector *v, int position)
