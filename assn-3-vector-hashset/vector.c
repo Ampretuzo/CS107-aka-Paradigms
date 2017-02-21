@@ -120,7 +120,11 @@ void VectorReplace(vector *v, const void *elemAddr, int position)
 
 void VectorInsert(vector *v, const void *elemAddr1, int position)
 {
-  assertPosInBounds(v, position);
+/*  // this assert is for IN bounds, whereas insert might on the edge*/
+/*  assertPosInBounds(v, position);*/
+  // proper assert
+  assert(position >= 0);
+  assert(position <= v->logLen);
   resizeIfSaturated(v);
   // move memory after position one quantum right
   shiftTailOneStep(v, position, true);
