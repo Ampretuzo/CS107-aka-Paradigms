@@ -23,7 +23,7 @@ static void initVectors(hashset* h)
 {
   for(int i = 0; i < h->numBuckets; i++)
     VectorNew(
-      (void*) ((char*) h->start + i * sizeof(vector)), 
+      (vector*) h->start + i, 
       h->elemSize, 
       h->freefn, 
       HEURISTIC_VEC_SIZE
@@ -33,7 +33,7 @@ static void initVectors(hashset* h)
 static void disposeVectors(hashset* h)
 {
   for(int i = 0; i < h->numBuckets; i++)
-    VectorDispose( (void*) ( (char*) h->start + i * sizeof(vector) ) );
+    VectorDispose( (vector*) h->start + i );
 }
 
 // TODO unite initVectors and disposeVectors in some sort of map function
@@ -68,7 +68,7 @@ int HashSetCount(const hashset *h)
 {
   int cnt = 0;
   for(int i = 0; i < h->numBuckets; i++)
-    cnt += VectorLength( (void*) ( (char*) h->start + i * sizeof(vector) ) );
+    cnt += VectorLength( (vector*) h->start + i);
   return cnt;
 }
 
