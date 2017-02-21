@@ -125,7 +125,7 @@ void VectorInsert(vector *v, const void *elemAddr1, int position)
   // move memory after position one quantum right
   shiftTailOneStep(v, position, true);
   void* dest = elemAddr(v, position);
-  dest = memcpy(dest, elemAddr, v->elemSize);
+  dest = memcpy(dest, elemAddr1, v->elemSize);
   assert(dest != NULL);
 }
 
