@@ -58,6 +58,9 @@ typedef void (*HashSetMapFunction)(void *elemAddr, void *auxData);
  * address.  Typically, such resources are dynamically allocated
  * memory, open file pointers, and data structures requiring that
  * some specific cleanup routine be called.
+ *
+ * I don`t like the fact that this and above funtion declarations are
+ * duplicated from vector structure. They should obey same conventions.
  */
 
 typedef void (*HashSetFreeFunction)(void *elemAddr);

@@ -83,7 +83,11 @@ int HashSetCount(const hashset *h)
 }
 
 void HashSetMap(hashset *h, HashSetMapFunction mapfn, void *auxData)
-{}
+{
+  assert(mapfn != NULL);
+  for(int i = 0; i < h->numBuckets; i++)
+    VectorMap( (vector*) h->start + i, mapfn, auxData);
+}
 
 /* this function must leave vector sorted! */
 void HashSetEnter(hashset *h, const void *elemAddr)
