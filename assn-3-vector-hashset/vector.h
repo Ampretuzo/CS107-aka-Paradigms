@@ -181,6 +181,22 @@ void *VectorNth(const vector *v, int position);
 void VectorInsert(vector *v, const void *elemAddr, int position);
 
 /**
+ * Function: VectorInsertSorted
+ * ----------------------------
+ * Inserts new element into the specified sorted vector, placing it so that
+ * sorting order is not violated.
+ * An assert is raised if given pointer is NULL.
+ * This function runs in log time if *elemAddr is high on the list, runs
+ * in linear time if *elemAddr is low on the list.
+ * That is better than appending and qsorting which is of O(n log n).
+ *
+ * >>> Client must be sure that vector is in sorted order when calling this <<<
+ */
+ 
+void VectorInsertSorted(vector *v, const void *elemAddr, 
+  VectorCompareFunction searchFn);
+
+/**
  * Function: VectorAppend
  * ----------------------
  * Appends a new element to the end of the specified vector.  The element is 

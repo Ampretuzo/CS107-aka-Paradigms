@@ -5,5 +5,6 @@
 # Edited files:
 !.gitignore
 !hashset.c
+!hashset.h
 !vector.c
 !vector.h
