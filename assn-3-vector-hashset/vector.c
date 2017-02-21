@@ -56,6 +56,14 @@ static void shiftTailOneStep(vector *v, int position, bool l_or_r)
   v->logLen += hop;
 }
 
+// this function returns index of element with given base.
+// consistency checking must be done outside. 
+static int getIndex(const vector* v, void* base)
+{
+  int bytesDist = (char*) base - (char*) v->start;
+  return bytesDist / v->elemSize;
+}
+
 /* end helpers */
 
 
@@ -63,7 +71,8 @@ static void shiftTailOneStep(vector *v, int position, bool l_or_r)
 
 
 
-void VectorNew(vector *v, int elemSize, VectorFreeFunction freeFn, int initialAllocation)
+void VectorNew(vector *v, int elemSize, 
+  VectorFreeFunction freeFn, int initialAllocation)
 {
 
   assert(elemSize > 0);
@@ -156,5 +165,28 @@ void VectorMap(vector *v, VectorMapFunction mapFn, void *auxData)
 }
 
 static const int kNotFound = -1;
-int VectorSearch(const vector *v, const void *key, VectorCompareFunction searchFn, int startIndex, bool isSorted)
-{ return -1; } 
+
+int VectorSearch(const vector *v, const void *key, 
+  VectorCompareFunction searchFn, int startIndex, bool isSorted)
+{
+  assert(searchFn != NULL);
+  assert(key != NULL);
+  assert(startIndex >= 0);
+  assert(startIndex <= v->logLen);
+  if(isSorted)  // bsearch
+  {
+    void* match = bsearch(
+      key,
+      elemAddr(v, startIndex),
+      v->logLen - startIndex,
+      v->elemSize,
+      searchFn
+    );
+    return match == NULL ? kNotFound : getIndex(v, match);
+  }
+  // linear search
+  for(int i = 0; i < v->logLen - startIndex; i++)
+    if((* searchFn)(key, elemAddr(v, startIndex + i)) == 0)
+      return startIndex + i;
+  return -1;
+}
