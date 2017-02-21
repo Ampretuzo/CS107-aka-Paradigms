@@ -139,7 +139,15 @@ void VectorDelete(vector *v, int position)
 }
 
 void VectorSort(vector *v, VectorCompareFunction compare)
-{}
+{
+  assert(compare != NULL);
+  qsort(
+    v->start, 
+    v->logLen,
+    v->elemSize,
+    compare
+  );
+}
 
 void VectorMap(vector *v, VectorMapFunction mapFn, void *auxData)
 {
