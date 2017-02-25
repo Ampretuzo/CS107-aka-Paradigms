@@ -4,6 +4,8 @@
 
 # Edited files:
 !.gitignore
-!Makefile # needs serious editing
+# kinda works
+!Makefile
 !rss-news-search.c
+!README
 # will add new files whenever changed
