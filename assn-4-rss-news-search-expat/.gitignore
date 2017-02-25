@@ -1,0 +1,9 @@
+# Ignore given files which dont need to be edited.
+# Found @: https://see.stanford.edu/Course/CS107
+*
+
+# Edited files:
+!.gitignore
+!Makefile # needs serious editing
+!rss-news-search.c
+# will add new files whenever changed
