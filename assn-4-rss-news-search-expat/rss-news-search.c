@@ -20,6 +20,7 @@ typedef struct {
   char *activeField;
 } rssFeedItem;
 
+static void GetStopWords(hashset* stop);
 static void Welcome(const char *welcomeTextURL);
 static void BuildIndices(const char *feedsFileURL);
 static void ProcessFeed(const char *remoteDocumentURL);
@@ -32,6 +33,99 @@ static void ScanArticle(streamtokenizer *st, const char *articleTitle, const cha
 static void QueryIndices();
 static void ProcessResponse(const char *word);
 static bool WordIsWellFormed(const char *word);
+
+
+
+
+/* functions for structures */
+
+/** 
+ * Function: StringHash                     
+ * --------------------
+ * Taken from readme. Adapted to specific requirements.
+ */  
+
+static const signed long kHashMultiplier = -1664117991L;
+static int StringHash(const void* p, int numBuckets)  
+{
+  char* str = * (char**) p; // deref pointer of pointer
+  
+  unsigned long hashcode = 0;
+  
+  for (int i = 0; i < strlen(str); i++)  
+    hashcode = hashcode * kHashMultiplier + tolower(str[i]);  
+  
+  return hashcode % numBuckets;                                
+}
+
+/**
+ * Function: StringCompare
+ * -----------------------
+ * This is basically a strcmp wrapper.
+ */
+static int StringCompare(const void * p1, const void * p2)
+{
+  char* s1 = * (char**) p1;
+  char* s2 = * (char**) p2;
+  
+  return strcmp(s1, s2);
+}
+
+/** 
+ * Function: StringPrint
+ * ---------------------
+ * Lifted from previous assignment for convenience.
+ * Is a wrapper for print.
+ * The target FILE * should
+ * be passed in via the auxData parameter.
+ */
+
+static void StringPrint(void* p, void* auxData)
+{
+  char* s = * (char**) p;
+  FILE* fp = (FILE*) auxData;
+  fprintf(fp, "%s\n", s);
+}
+
+/**
+ * Function: StringDispose
+ * -----------------------
+ * This is a wrapper for free.
+ */
+
+static void StringDispose(void* p)
+{
+  char* s = * (char**) p;
+  free(s);
+}
+
+/* end functions for structures */
+
+
+
+
+
+static const int numBuckets = 1009;
+
+/* simple helper functions */
+
+static void InitializeStructures(hashset* stop)
+{
+  // initialize stop hashset
+  HashSetNew(stop, sizeof(char*), numBuckets, StringHash, StringCompare, StringDispose);
+}
+
+static void DisposeStructures(hashset* stop)
+{
+  HashSetDispose(stop);
+}
+
+/* end simple helper functions */
+
+
+
+
+
 
 /**
  * Function: main
@@ -58,14 +152,57 @@ static const char *const kDefaultStopWordsURL = "http://cs107.stanford.edu/rss-n
 static const char *const kDefaultFeedsFilePath = // "http://cs107.stanford.edu/rss-news/rss-feeds.txt";
   // Likewise, using local file:
   "../assn-4-rss-news-search-data/rss-feeds-not9yo.txt";
+  
 int main(int argc, char **argv)
 {
   const char *feedsFilePath = (argc == 1) ? kDefaultFeedsFilePath : argv[1];
   
+  hashset stop; // this hashset will contain... well, stop words.
+  
+  InitializeStructures(&stop);
+  
   Welcome(kWelcomeTextPath);
-  BuildIndices(feedsFilePath);
+  GetStopWords(&stop);
+/*  BuildIndices(feedsFilePath);*/
 /*  QueryIndices();*/
+  
+  DisposeStructures(&stop);
+
   return 0;
+}
+
+/**
+ * Function: GetStopWords
+ * ----------------------
+ * Collects stop words from file into given hashset
+ *
+ * @param stop hashset truct pointer where you want to collect the stop words.
+ */
+ 
+static const char* const stopFilename = "../assn-4-rss-news-search-data/stop-words.txt";
+static const char *const kNewLineDelimiters = "\r\n";
+static void GetStopWords(hashset* stop)
+{
+  FILE* fp;
+  fp = fopen(stopFilename, "r");
+  assert(fp != NULL);
+  
+  // use streamtokenizer for fun
+  streamtokenizer st;
+  char buffer[128];
+  STNew(&st, fp, kNewLineDelimiters, true); // discarding delimiters
+  while (STNextToken(&st, buffer, sizeof(buffer) ) )
+  {
+    char* str = (char*) malloc(strlen(buffer) + 1);
+    assert(str != NULL);
+    memcpy(str, buffer, strlen(buffer) + 1);
+    HashSetEnter(stop, &str);
+  }
+   
+  STDispose(&st);
+
+  // close FILE to flush buffer
+  fclose(fp);
 }
 
 /** 
@@ -85,7 +222,6 @@ int main(int argc, char **argv)
  * No return value to speak of.
  */
  
-static const char *const kNewLineDelimiters = "\r\n";
 static void Welcome(const char *welcomeTextPath)
 {
 /* Removed the code handling web address to welcome.txt*/
@@ -98,7 +234,7 @@ static void Welcome(const char *welcomeTextPath)
   streamtokenizer st;
   char buffer[4096];
   STNew(&st, fp, kNewLineDelimiters, true); // discarding delimiters
-  while (STNextToken(&st, buffer, sizeof(buffer))) {
+  while (STNextToken(&st, buffer, sizeof(buffer) ) ) {
     printf("%s\n", buffer);
   }  
   printf("\n");
