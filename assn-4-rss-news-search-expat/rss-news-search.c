@@ -404,13 +404,7 @@ static void ProcessStartTag(void *userData, const char *name, const char **atts)
     item->activeField = item->description;
   } else if (strcasecmp(name, "link") == 0) {
     item->activeField = item->url;
-  }
-  // TODO: I think this misses the case when some arbitrary 
-  // tag is encountered. Maybe it should detach activeField 
-  // by setting it to NULL, because on the first call pointer is not
-  // necessarily NULL and this function will try to use it nonetheless.
-  // DONE, but still keep this in mind for later safety.
-  item->activeField = NULL;
+  } else item->activeField = NULL;
 }
 
 /**
