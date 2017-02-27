@@ -146,9 +146,9 @@ static void BuildIndices(const char *feedsFilePath)
   while (STSkipUntil(&st, ":") != EOF) { // ignore everything up to the first selicolon of the line
     STSkipOver(&st, ": ");		   // now ignore the semicolon and any whitespace directly after it
     STNextToken(&st, remoteDocumentURL, sizeof(remoteDocumentURL));
-    static int i = 0;
-    printf("Feed #%d: %s\n", ++i, remoteDocumentURL);
-/*    ProcessFeed(remoteDocumentURL);*/
+/*    static int i = 0;*/
+/*    printf("Feed #%d: %s\n", ++i, remoteDocumentURL);*/
+    ProcessFeed(remoteDocumentURL);
   }
   
   printf("\n");
@@ -227,6 +227,7 @@ static void PullAllNewsItems(urlconnection *urlconn)
 
   STNew(&st, urlconn->dataStream, "\n", false);
   while (STNextToken(&st, buffer, sizeof(buffer))) {
+/*    printf("buffered: %s\n", buffer);*/
     XML_Parse(rssFeedParser, buffer, strlen(buffer), false);
   }
   STDispose(&st);
@@ -267,6 +268,12 @@ static void ProcessStartTag(void *userData, const char *name, const char **atts)
   } else if (strcasecmp(name, "link") == 0) {
     item->activeField = item->url;
   }
+  // TODO: I think this misses the case when some arbitrary 
+  // tag is encountered. Maybe it should detach activeField 
+  // by setting it to NULL, because on the first call pointer is not
+  // necessarily NULL and this function will try to use it nonetheless.
+  // DONE, but still keep this in mind for later safety.
+  item->activeField = NULL;
 }
 
 /**
@@ -287,8 +294,8 @@ static void ProcessEndTag(void *userData, const char *name)
 {
   rssFeedItem *item = userData;
   item->activeField = NULL;
-  if (strcasecmp(name, "item") == 0)
-    ParseArticle(item->title, item->url);
+  if (strcasecmp(name, "item") == 0) return;  // back off a little
+/*    ParseArticle(item->title, item->url);*/
 }
 
 /**
@@ -356,18 +363,18 @@ static void ParseArticle(const char *articleTitle, const char *articleURL)
 
   switch (urlconn.responseCode) {
       case 0: printf("Unable to connect to \"%s\".  Domain name or IP address is nonexistent.\n", articleURL);
-              break;
+          break;
       case 200: printf("[%s] Indexing \"%s\"\n", u.serverName, articleTitle);
 	        STNew(&st, urlconn.dataStream, kTextDelimiters, false);
-		ScanArticle(&st, articleTitle, articleURL);
-		STDispose(&st);
-		break;
+          ScanArticle(&st, articleTitle, articleURL);
+		      STDispose(&st);
+	        break;
       case 301: 
       case 302: // just pretend we have the redirected URL all along, though index using the new URL and not the old one...
 	        ParseArticle(articleTitle, urlconn.newUrl);
-		break;
+		      break;
       default: printf("Unable to pull \"%s\" from \"%s\". [Response code: %d] Punting...\n", articleTitle, u.serverName, urlconn.responseCode);
-	       break;
+	        break;
   }
   
   URLConnectionDispose(&urlconn);
@@ -393,15 +400,16 @@ static void ScanArticle(streamtokenizer *st, const char *articleTitle, const cha
   char word[1024];
   char longestWord[1024] = {'\0'};
 
-  while (STNextToken(st, word, sizeof(word))) {
+  while (STNextToken(st, word, sizeof(word))) 
+  {
     if (strcasecmp(word, "<") == 0) {
       SkipIrrelevantContent(st); // in html-utls.h
     } else {
       RemoveEscapeCharacters(word);
       if (WordIsWellFormed(word)) {
-	numWords++;
-	if (strlen(word) > strlen(longestWord))
-	  strcpy(longestWord, word);
+	      numWords++;
+	      if (strlen(word) > strlen(longestWord))
+	        strcpy(longestWord, word);
       }
     }
   }
