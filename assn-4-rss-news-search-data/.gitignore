@@ -1,0 +1,8 @@
+# ignore everything
+*
+
+# except new file
+!rss-feeds-not9yo.txt
+# and itself
+!.gitignore
+

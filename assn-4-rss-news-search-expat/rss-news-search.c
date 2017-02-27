@@ -57,7 +57,7 @@ static const char *const kWelcomeTextPath = // "http://cs107.stanford.edu/rss-ne
 static const char *const kDefaultStopWordsURL = "http://cs107.stanford.edu/rss-news/stop-words.txt";
 static const char *const kDefaultFeedsFilePath = // "http://cs107.stanford.edu/rss-news/rss-feeds.txt";
   // Likewise, using local file:
-  "../assn-4-rss-news-search-data/rss-feeds.txt";
+  "../assn-4-rss-news-search-data/rss-feeds-not9yo.txt";
 int main(int argc, char **argv)
 {
   const char *feedsFilePath = (argc == 1) ? kDefaultFeedsFilePath : argv[1];
@@ -146,8 +146,8 @@ static void BuildIndices(const char *feedsFilePath)
   while (STSkipUntil(&st, ":") != EOF) { // ignore everything up to the first selicolon of the line
     STSkipOver(&st, ": ");		   // now ignore the semicolon and any whitespace directly after it
     STNextToken(&st, remoteDocumentURL, sizeof(remoteDocumentURL));
-/*    static int i = 0;*/
-/*    printf("Feed #%d: %s\n", ++i, remoteDocumentURL);*/
+    static int i = 0;
+    printf("Feed #%d: %s\n", ++i, remoteDocumentURL);
     ProcessFeed(remoteDocumentURL);
   }
   
@@ -175,16 +175,17 @@ static void ProcessFeed(const char *remoteDocumentURL)
   URLConnectionNew(&urlconn, &u);
 
   switch (urlconn.responseCode) {
-      case 0: printf("Unable to connect to \"%s\".  Ignoring...", u.serverName);
-              break;
+      case 0: printf("Unable to connect to \"%s\".  Ignoring...\n", u.serverName);
+        break;
       case 200: PullAllNewsItems(&urlconn);
-                break;
+        printf("Yes? %s\n", u.serverName);
+        break;
       case 301: 
       case 302: ProcessFeed(urlconn.newUrl);
-                break;
+        break;
       default: printf("Connection to \"%s\" was established, but unable to retrieve \"%s\". [response code: %d, response message:\"%s\"]\n",
-		      u.serverName, u.fileName, urlconn.responseCode, urlconn.responseMessage);
-	       break;
+		    u.serverName, u.fileName, urlconn.responseCode, urlconn.responseMessage);
+	      break;
   };
   
   URLConnectionDispose(&urlconn);

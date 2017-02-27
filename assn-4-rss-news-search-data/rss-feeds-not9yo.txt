@@ -1,0 +1,3 @@
+Manhattan-Institute, url struct says that the servername of this xml is "https". Not my bug: https://www.manhattan-institute.org/feed/525/rss.xml
+Fox Busyness: http://feeds.foxbusiness.com/foxbusiness/latest?format=xml
+CNN Fake News Portal: http://rss.cnn.com/rss/cnn_us..xml
