@@ -55,15 +55,15 @@ static const char *const kWelcomeTextPath = // "http://cs107.stanford.edu/rss-ne
   // Data folder is in the the same directory as source files:
   "../assn-4-rss-news-search-data/welcome.txt";
 static const char *const kDefaultStopWordsURL = "http://cs107.stanford.edu/rss-news/stop-words.txt";
-static const char *const kDefaultFeedsFileURL = // "http://cs107.stanford.edu/rss-news/rss-feeds.txt";
+static const char *const kDefaultFeedsFilePath = // "http://cs107.stanford.edu/rss-news/rss-feeds.txt";
   // Likewise, using local file:
   "../assn-4-rss-news-search-data/rss-feeds.txt";
 int main(int argc, char **argv)
 {
-  const char *feedsFileURL = (argc == 1) ? kDefaultFeedsFileURL : argv[1];
+  const char *feedsFilePath = (argc == 1) ? kDefaultFeedsFilePath : argv[1];
   
   Welcome(kWelcomeTextPath);
-/*  BuildIndices(feedsFileURL);*/
+  BuildIndices(feedsFilePath);
 /*  QueryIndices();*/
   return 0;
 }
@@ -128,33 +128,33 @@ static void Welcome(const char *welcomeTextPath)
  */
 
 static const int kNumIndexEntryBuckets = 10007;
-static void BuildIndices(const char *feedsFileURL)
+static void BuildIndices(const char *feedsFilePath)
 {
-  url u;
-  urlconnection urlconn;
-  
-  URLNewAbsolute(&u, feedsFileURL);
-  URLConnectionNew(&urlconn, &u);
-  
-  if (urlconn.responseCode / 100 == 3) { // redirection, so recurse
-    BuildIndices(urlconn.newUrl);
-  } else {
-    streamtokenizer st;
-    char remoteDocumentURL[2048];
-    
-    STNew(&st, urlconn.dataStream, kNewLineDelimiters, true);
-    while (STSkipUntil(&st, ":") != EOF) { // ignore everything up to the first selicolon of the line
-      STSkipOver(&st, ": ");		   // now ignore the semicolon and any whitespace directly after it
-      STNextToken(&st, remoteDocumentURL, sizeof(remoteDocumentURL));   
-      ProcessFeed(remoteDocumentURL);
-    }
-    
-    printf("\n");
-    STDispose(&st);
+  // Just like in Welcome, converting to local files.
+  FILE *fp;
+  fp = fopen(feedsFilePath, "r");
+  if(fp == NULL) 
+  {
+    printf("Feeds file path is not good: %s\nTry again.\n", feedsFilePath);
+    exit(1);
   }
   
-  URLConnectionDispose(&urlconn);
-  URLDispose(&u);
+  streamtokenizer st;
+  char remoteDocumentURL[2048];
+    
+  STNew(&st, fp, kNewLineDelimiters, true);
+  while (STSkipUntil(&st, ":") != EOF) { // ignore everything up to the first selicolon of the line
+    STSkipOver(&st, ": ");		   // now ignore the semicolon and any whitespace directly after it
+    STNextToken(&st, remoteDocumentURL, sizeof(remoteDocumentURL));
+    static int i = 0;
+    printf("Feed #%d: %s\n", ++i, remoteDocumentURL);
+/*    ProcessFeed(remoteDocumentURL);*/
+  }
+  
+  printf("\n");
+  STDispose(&st);
+  
+  fclose(fp);
 }
 
 /**
