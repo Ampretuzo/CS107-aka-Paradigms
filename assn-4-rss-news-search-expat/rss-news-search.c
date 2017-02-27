@@ -49,16 +49,22 @@ static bool WordIsWellFormed(const char *word);
  *         within the code base that end the program abnormally)
  */
 
-static const char *const kWelcomeTextURL = "http://cs107.stanford.edu/rss-news/welcome.txt";
+static const char *const kWelcomeTextPath = // "http://cs107.stanford.edu/rss-news/welcome.txt";
+  // Above 9yo web adress is obsolete.
+  // Instead, working with file paths.
+  // Data folder is in the the same directory as source files:
+  "../assn-4-rss-news-search-data/welcome.txt";
 static const char *const kDefaultStopWordsURL = "http://cs107.stanford.edu/rss-news/stop-words.txt";
-static const char *const kDefaultFeedsFileURL = "http://cs107.stanford.edu/rss-news/rss-feeds.txt";
+static const char *const kDefaultFeedsFileURL = // "http://cs107.stanford.edu/rss-news/rss-feeds.txt";
+  // Likewise, using local file:
+  "../assn-4-rss-news-search-data/rss-feeds.txt";
 int main(int argc, char **argv)
 {
   const char *feedsFileURL = (argc == 1) ? kDefaultFeedsFileURL : argv[1];
   
-  Welcome(kWelcomeTextURL);
-  BuildIndices(feedsFileURL);
-  QueryIndices();
+  Welcome(kWelcomeTextPath);
+/*  BuildIndices(feedsFileURL);*/
+/*  QueryIndices();*/
   return 0;
 }
 
@@ -80,29 +86,26 @@ int main(int argc, char **argv)
  */
  
 static const char *const kNewLineDelimiters = "\r\n";
-static void Welcome(const char *welcomeTextURL)
+static void Welcome(const char *welcomeTextPath)
 {
-  url u;
-  urlconnection urlconn;
+/* Removed the code handling web address to welcome.txt*/
+/* Instead, using filesystem path: */
+  // https://www.cs.bu.edu/teaching/c/file-io/intro/
+  FILE *fp;
+  fp = fopen(welcomeTextPath, "r");
+  assert(fp != NULL); // welcome file not found
   
-  URLNewAbsolute(&u, welcomeTextURL);
-  URLConnectionNew(&urlconn, &u);
-  
-  if (urlconn.responseCode / 100 == 3) {
-    Welcome(urlconn.newUrl);
-  } else {
-    streamtokenizer st;
-    char buffer[4096];
-    STNew(&st, urlconn.dataStream, kNewLineDelimiters, true);
-    while (STNextToken(&st, buffer, sizeof(buffer))) {
-      printf("%s\n", buffer);
-    }  
-    printf("\n");
-    STDispose(&st); // remember that STDispose doesn't close the file, since STNew doesn't open one.. 
-  }
+  streamtokenizer st;
+  char buffer[4096];
+  STNew(&st, fp, kNewLineDelimiters, true); // discarding delimiters
+  while (STNextToken(&st, buffer, sizeof(buffer))) {
+    printf("%s\n", buffer);
+  }  
+  printf("\n");
+  STDispose(&st); // remember that STDispose doesn't close the file, since STNew doesn't open one.. 
 
-  URLConnectionDispose(&urlconn);
-  URLDispose(&u);
+  // close FILE to flush buffer
+  fclose(fp);
 }
 
 /**
