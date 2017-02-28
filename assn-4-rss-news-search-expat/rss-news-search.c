@@ -179,6 +179,21 @@ static void ArticleDispose(void* p)
   URLDispose(a->url);
 }
 
+// Note that this function supports only linear search in vector.
+static int ArticleCompare(const void * p1, const void * p2)
+{
+  article* a1 = (article*) p1;
+  article* a2 = (article*) p2;
+  // Two articles are equal when their urls are the same or when
+  // theyr titles and servers are the same.
+  if(
+    strcmp(a1->url->fullName, a2->url->fullName) == 0 
+    ||
+    (strcmp(a1->title, a2->title) && strcmp(a1->url->serverName, a2->url->serverName) ) 
+  ) return 0;
+  return 1;
+}
+
 typedef struct {
   article* article;
   int cnt;
