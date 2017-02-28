@@ -172,6 +172,13 @@ typedef struct {
   char* title;  // Article title
 } article;
 
+static void ArticleDispose(void* p)
+{
+  article* a = (article*) p;
+  free(a->title);
+  URLDispose(a->url);
+}
+
 typedef struct {
   article* article;
   int cnt;
@@ -202,17 +209,19 @@ static const int numBuckets = 1009;
 
 /* simple helper functions */
 
-static void InitializeStructures(hashset* stop, hashset* idx)
+static void InitializeStructures(hashset* stop, hashset* idx, vector* indexedArticles)
 {
   HashSetNew(stop, sizeof(char*), numBuckets, StringHash, StringCompare, StringDispose);
   HashSetNew(idx, sizeof(word_and_articles), numBuckets /* note that underlying key is string */,
     w_and_aHash, w_and_aCompare, w_and_aDispose);
+  VectorNew(indexedArticles, sizeof(article), ArticleDispose, 0);
 }
 
-static void DisposeStructures(hashset* stop, hashset* idx)
+static void DisposeStructures(hashset* stop, hashset* idx, vector* indexedArticles)
 {
   HashSetDispose(stop);
   HashSetDispose(idx);
+  VectorDispose(indexedArticles);
 }
 
 /* end simple helper functions */
@@ -263,15 +272,16 @@ int main(int argc, char **argv)
   
   hashset stop; // this hashset will contain... well, stop words.
   hashset idx;  // index
+  vector indexedArticles;
   
-  InitializeStructures(&stop, &idx);
+  InitializeStructures(&stop, &idx, &indexedArticles);
   
   Welcome(kWelcomeTextPath);
   GetStopWords(&stop);
   BuildIndices(feedsFilePath);
   QueryIndices(&stop);
   
-  DisposeStructures(&stop, &idx);
+  DisposeStructures(&stop, &idx, &indexedArticles);
 
   return 0;
 }
