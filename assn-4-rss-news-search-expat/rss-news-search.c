@@ -32,7 +32,7 @@ static void PullAllNewsItems(urlconnection *urlconn, hashset* stop, hashset* idx
 static void ProcessStartTag(void *userData, const char *name, const char **atts);
 static void ProcessEndTag(void *userData, const char *name);
 static void ProcessTextData(void *userData, const char *text, int len);
-static void ParseArticle(const char *articleTitle, const char *articleURL);
+static void ParseArticle(char *articleTitle, const char *articleURL, hashset* stop, hashset* idx, vector* indexedArticles);
 static void ScanArticle(streamtokenizer *st, const char *articleTitle, const char *articleURL);
 static void indexWord(char* word, size_t wordSize, const char* articleTitle, const char* articleURL);
 static void QueryIndices(hashset* stop, hashset* idx);
@@ -569,7 +569,7 @@ static void ProcessEndTag(void *userData, const char *name)
   if (strcasecmp(name, "item") == 0)
   {
     // TODO: Pass containers
-    ParseArticle(item->title, item->url);  
+    ParseArticle(item->title, item->url, item->stop, item->idx, item->indexedArticles);  
   }
 }
 
@@ -627,13 +627,24 @@ static void ProcessTextData(void *userData, const char *text, int len)
  */
 
 static const char *const kTextDelimiters = " \t\n\r\b!@$%^*()_+={[}]|\\'\":;/?.>,<~`";
-static void ParseArticle(const char *articleTitle, const char *articleURL)
+static void ParseArticle(char *articleTitle, const char *articleURL, hashset* stop, hashset* idx, vector* indexedArticles)
 {
   url u;
   urlconnection urlconn;
   streamtokenizer st;
   
   URLNewAbsolute(&u, articleURL);
+  // At this point we can decide if this article is being indexed twice:
+  article a;
+  a.url = &u;
+  a.title = articleTitle;
+  if(VectorSearch(indexedArticles, &a, ArticleCompare, 0, false) != -1) return;
+  // Need to dynamically alocate article struct, in a deep way,
+  // thats why it is better to store actual structs in containers instead of
+  // pointers.
+  // TODO: rewrite in such a way.
+/*  VectorAppend(&indexedArticles, )*/
+  
   URLConnectionNew(&urlconn, &u);
 
   switch (urlconn.responseCode) {
@@ -646,7 +657,7 @@ static void ParseArticle(const char *articleTitle, const char *articleURL)
 	        break;
       case 301: 
       case 302: // just pretend we have the redirected URL all along, though index using the new URL and not the old one...
-	        ParseArticle(articleTitle, urlconn.newUrl);
+	        ParseArticle(articleTitle, urlconn.newUrl, stop, idx, indexedArticles);
 		      break;
       default: printf("Unable to pull \"%s\" from \"%s\". [Response code: %d] Punting...\n", articleTitle, u.serverName, urlconn.responseCode);
 	        break;
