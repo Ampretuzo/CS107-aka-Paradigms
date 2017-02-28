@@ -37,7 +37,11 @@ static bool WordIsWellFormed(const char *word);
 
 
 
-/* functions for structures */
+
+
+
+
+/* functions stop words hashset */
 
 /** 
  * Function: StringHash                     
@@ -105,6 +109,85 @@ static void StringDispose(void* p)
 
 
 
+
+
+
+
+
+
+
+
+/* functions for index structure */
+
+/*
+ * Here's the basic idea.
+ * We need to map words to vector of articles sorted by 
+ * number of word appearences.
+ * To achieve that, we need a structure which will carry a word and a vector of 
+ * pointers to articles with int number of appearances.
+ * We will store those structures inside a hashset, which will use string 
+ * functions to hash and compare.
+ * When user enters a word, we can just look up corresponding entry in hashset
+ * and present vector of articles sorted by number of word appearances.
+ */
+
+/**
+ * This struct contains only necessary information to display to the user.
+ * Might add some fields if necessary.
+ */
+ 
+typedef struct {
+  char* name;
+  char* URL;
+} article;
+
+/**
+ * This is a helper struct to keep article and number of word appearances 
+ * in that article.
+ */
+ 
+typedef struct {
+  article* article;
+  int appearance;
+} articleAppearance;
+
+/**
+ * index structure.
+ * Ultimately we will create a hashset of these, using string functions to
+ * hash and compare.
+ */
+
+typedef struct {
+  char* word; // the word 
+  vector* articles; // vector that will hold articleAppearances
+} wordIndex;
+
+// TODO: necessary functions to use containers of these structs
+
+
+
+
+
+
+
+
+
+/* end functions for index structure */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 static const int numBuckets = 1009;
 
 /* simple helper functions */
@@ -121,6 +204,15 @@ static void DisposeStructures(hashset* stop)
 }
 
 /* end simple helper functions */
+
+
+
+
+
+
+
+
+
 
 
 
@@ -163,7 +255,7 @@ int main(int argc, char **argv)
   
   Welcome(kWelcomeTextPath);
   GetStopWords(&stop);
-/*  BuildIndices(feedsFilePath);*/
+  BuildIndices(feedsFilePath);
 /*  QueryIndices();*/
   
   DisposeStructures(&stop);
@@ -282,8 +374,8 @@ static void BuildIndices(const char *feedsFilePath)
   while (STSkipUntil(&st, ":") != EOF) { // ignore everything up to the first selicolon of the line
     STSkipOver(&st, ": ");		   // now ignore the semicolon and any whitespace directly after it
     STNextToken(&st, remoteDocumentURL, sizeof(remoteDocumentURL));
-    static int i = 0;
-    printf("Feed #%d: %s\n", ++i, remoteDocumentURL);
+/*    static int i = 0;*/
+/*    printf("Feed #%d: %s\n", ++i, remoteDocumentURL);*/
     ProcessFeed(remoteDocumentURL);
   }
   
@@ -314,7 +406,7 @@ static void ProcessFeed(const char *remoteDocumentURL)
       case 0: printf("Unable to connect to \"%s\".  Ignoring...\n", u.serverName);
         break;
       case 200: PullAllNewsItems(&urlconn);
-        printf("Yes? %s\n", u.serverName);
+/*        printf("Yes? %s\n", u.serverName);*/
         break;
       case 301: 
       case 302: ProcessFeed(urlconn.newUrl);
@@ -425,8 +517,8 @@ static void ProcessEndTag(void *userData, const char *name)
 {
   rssFeedItem *item = userData;
   item->activeField = NULL;
-  if (strcasecmp(name, "item") == 0) return;  // back off a little
-/*    ParseArticle(item->title, item->url);*/
+  if (strcasecmp(name, "item") == 0)
+    ParseArticle(item->title, item->url);
 }
 
 /**
