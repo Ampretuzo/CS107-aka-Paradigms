@@ -30,6 +30,7 @@ static void ProcessEndTag(void *userData, const char *name);
 static void ProcessTextData(void *userData, const char *text, int len);
 static void ParseArticle(const char *articleTitle, const char *articleURL);
 static void ScanArticle(streamtokenizer *st, const char *articleTitle, const char *articleURL);
+static void indexWord(char* word, size_t wordSize, const char* articleTitle, const char* articleURL);
 static void QueryIndices(hashset* stop);
 static void ProcessResponse(const char *word, hashset* stop);
 static bool WordIsWellFormed(const char *word);
@@ -255,7 +256,7 @@ int main(int argc, char **argv)
   
   Welcome(kWelcomeTextPath);
   GetStopWords(&stop);
-/*  BuildIndices(feedsFilePath);*/
+  BuildIndices(feedsFilePath);
   QueryIndices(&stop);
   
   DisposeStructures(&stop);
@@ -619,29 +620,47 @@ static void ParseArticle(const char *articleTitle, const char *articleURL)
 
 static void ScanArticle(streamtokenizer *st, const char *articleTitle, const char *articleURL)
 {
-  int numWords = 0;
+  // I don't care about longest word or word count, so comment out below
+/*  int numWords = 0;*/
   char word[1024];
-  char longestWord[1024] = {'\0'};
+/*  char longestWord[1024] = {'\0'};*/
 
   while (STNextToken(st, word, sizeof(word))) 
   {
     if (strcasecmp(word, "<") == 0) {
       SkipIrrelevantContent(st); // in html-utls.h
     } else {
-      RemoveEscapeCharacters(word);
+      RemoveEscapeCharacters(word); // in html-utils.h
       if (WordIsWellFormed(word)) {
-	      numWords++;
-	      if (strlen(word) > strlen(longestWord))
-	        strcpy(longestWord, word);
+        indexWord(word, sizeof(word), articleTitle, articleURL);
+/*	      numWords++;*/
+/*	      if (strlen(word) > strlen(longestWord))*/
+/*	        strcpy(longestWord, word);*/
       }
     }
   }
 
-  printf("\tWe counted %d well-formed words [including duplicates].\n", numWords);
-  printf("\tThe longest word scanned was \"%s\".", longestWord);
-  if (strlen(longestWord) >= 15 && (strchr(longestWord, '-') == NULL)) 
-    printf(" [Ooooo... long word!]");
-  printf("\n");
+/*  printf("\tWe counted %d well-formed words [including duplicates].\n", numWords);*/
+/*  printf("\tThe longest word scanned was \"%s\".", longestWord);*/
+/*  if (strlen(longestWord) >= 15 && (strchr(longestWord, '-') == NULL)) */
+/*    printf(" [Ooooo... long word!]");*/
+/*  printf("\n");*/
+}
+
+/**
+ * Function: indexWord
+ * -------------------
+ * Update index for word.
+ * Ideally, word might be incomplete char array buffer, in which case we 
+ * should wait successive calls to finish started text.
+ * But in reality it is good enough to just take buffer as as complete word
+ * and index it that way, especially when wordSize is as large as 1024, which
+ * it is.
+ */
+
+static void indexWord(char* word, size_t wordSize, const char* articleTitle, const char* articleURL)
+{
+  // TODO
 }
 
 /** 
