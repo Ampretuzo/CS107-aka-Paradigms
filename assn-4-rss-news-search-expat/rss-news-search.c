@@ -124,82 +124,17 @@ static void StringDispose(void* p)
  * Here's the basic idea.
  * We need to map words to vector of articles sorted by 
  * number of word appearences.
- * To achieve that, we need a structure which will carry a word and a vector of 
- * pointers to articles with int number of appearances.
- * We will store those structures inside a hashset, which will use string 
- * functions to hash and compare.
+ * To achieve that, we need a struct which will carry a word string and  
+ * a vector, storing articles and number of appearances of that word in 
+ * those articles.
+ * We will store those structs inside a hashset.
+ * Hash function and comparison will be inherited from word string.
  * When user enters a word, we can just look up corresponding entry in hashset
- * and present vector of articles sorted by number of word appearances.
+ * and display its vector of articles.
  */
 
 /**
- * This struct contains only necessary information to display to the user.
- * Might add some fields if necessary.
- */
- 
-typedef struct {
-  char* const name;
-  char* const URL;
-} article;
-
-static void ArticleDispose(void* p)
-{
-  article* a = (article*) p;
-  free(a->name);
-  free(a->URL);
-}
-
-static bool sameTitleAndServer(article* a1, article* a2)
-{
-  bool titlesMatch = (strcmp(a1->name, a2->name) == 0);
-  bool serverMatch = false; // TODO: for now, not letting any duplication 
-  return titlesMatch && serverMatch;
-}
-
-/*
- * Two articles are the same if the come from exact same URL, or their title
- * AND come from the same server.
- */
- 
-static int ArticleCompare(const void* p1, const void* p2)
-{
-  article* a1 = (article*) p1;
-  article* a2 = (article*) p2;
-  // Return 0 if two articles are the same:
-  if(strcmp(a1->URL, a2->URL) == 0 || sameTitleAndServer(a1, a2) ) return 0;
-  // otherwise just consider urls
-  return strcmp(a1->URL, a2->URL);  // TODO: is this OK?
-}
-
-/**
- * This is a helper struct to keep article and number of word appearances 
- * in that article.
- */
- 
-typedef struct {
-  article* article;
-  int appearance;
-} articleAppearance;
-
-static void ArticleAppearanceDispose(void* p)
-{
-  // just wrap
-  articleAppearance* aa = (articleAppearance*) p;
-  ArticleDispose(aa->article);
-}
-
-static int ArticleAppearanceCompare(const void* p1, const void* p2)
-{
-  articleAppearance* a1 = (articleAppearance*) p1;
-  articleAppearance* a2 = (articleAppearance*) p2;
-  // Return 0 if two articles are the same:
-  if(strcmp(a1->article->URL, a2->article->URL) == 0 || sameTitleAndServer(a1->article, a2->article) ) return 0;
-  // otherwise just consider urls
-  return strcmp(a1->article->URL, a2->article->URL);  // TODO: is this OK?
-}
-
-/**
- * index structure.
+ * Struct that keeps word and vector of artices.
  * Ultimately we will create a hashset of these, using string functions to
  * hash and compare.
  */
@@ -207,35 +142,43 @@ static int ArticleAppearanceCompare(const void* p1, const void* p2)
 typedef struct {
   char* word; // the word 
   vector* articles; // vector that will hold articleAppearances
-} wordIndex;
+} word_and_articles;
 
-// WordIndex functions will basically wrap string functions.
-static int WordIndexHash(const void* p, int numBuckets)
+// word_and_articles functions will basically wrap string functions.
+static int w_and_aHash(const void* p, int numBuckets)
 {
-  wordIndex* wi = (wordIndex*) p;
-  return StringHash(&(wi->word), numBuckets);
+  word_and_articles* wa = (word_and_articles*) p;
+  return StringHash( &(wa->word), numBuckets);
 }
 
-static int WordIndexCompare(const void * p1, const void * p2)
+static int w_and_aCompare(const void * p1, const void * p2)
 {
-  wordIndex* wi1 = (wordIndex*) p1;
-  wordIndex* wi2 = (wordIndex*) p2;
+  word_and_articles* wa1 = (word_and_articles*) p1;
+  word_and_articles* wa2 = (word_and_articles*) p2;
   
-  return StringCompare(&(wi1->word), (&(wi2->word) ) );
+  return StringCompare( &(wa1->word), (&(wa2->word) ) );
 }
 
-static void WordIndexDispose(void* p)
+static void w_and_aDispose(void* p)
 {
-  wordIndex* wi = (wordIndex*) p;
-  free(wi->word);
-  VectorDispose(wi->articles);
+  word_and_articles* wa = (word_and_articles*) p;
+  free(wa->word);
+  VectorDispose(wa->articles);
 }
-// end WordIndex functions
 
+typedef struct {
+  url* url;  // We could have stored char*, but this is more convenient later when 
+            // we'll need to get server name.
+  char* title;  // Article title
+} article;
 
+typedef struct {
+  article* article;
+  int cnt;
+} wcnt; // Word Count in Article
 
-
-
+// TODO these structures need functions like comparators and destructors.
+// Add when needed.
 
 
 
@@ -262,8 +205,8 @@ static const int numBuckets = 1009;
 static void InitializeStructures(hashset* stop, hashset* idx)
 {
   HashSetNew(stop, sizeof(char*), numBuckets, StringHash, StringCompare, StringDispose);
-  HashSetNew(idx, sizeof(wordIndex), numBuckets /* note that underlying key is string */,
-    WordIndexHash, WordIndexCompare, WordIndexDispose);
+  HashSetNew(idx, sizeof(word_and_articles), numBuckets /* note that underlying key is string */,
+    w_and_aHash, w_and_aCompare, w_and_aDispose);
 }
 
 static void DisposeStructures(hashset* stop, hashset* idx)
