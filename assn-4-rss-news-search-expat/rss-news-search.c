@@ -33,8 +33,8 @@ static void ProcessStartTag(void *userData, const char *name, const char **atts)
 static void ProcessEndTag(void *userData, const char *name);
 static void ProcessTextData(void *userData, const char *text, int len);
 static void ParseArticle(char *articleTitle, const char *articleURL, hashset* stop, hashset* idx, vector* indexedArticles);
-static void ScanArticle(streamtokenizer *st, const char *articleTitle, const char *articleURL);
-static void indexWord(char* word, size_t wordSize, const char* articleTitle, const char* articleURL);
+static void ScanArticle(streamtokenizer *st, const char *articleTitle, const char *articleURL, hashset* stop, hashset* idx);
+static void indexWord(char* word, size_t wordSize, const char* articleTitle, const char* articleURL, hashset* stop, hashset* idx);
 static void QueryIndices(hashset* stop, hashset* idx);
 static void ProcessResponse(const char *word, hashset* stop, hashset* idx);
 static bool WordIsWellFormed(const char *word);
@@ -145,7 +145,7 @@ static void StringDispose(void* p)
 
 typedef struct {
   char* word; // the word 
-  vector* articles; // vector that will hold articleAppearances
+  vector articles; // vector that will hold articleAppearances
 } word_and_articles;
 
 // word_and_articles functions will basically wrap string functions.
@@ -160,18 +160,18 @@ static int w_and_aCompare(const void * p1, const void * p2)
   word_and_articles* wa1 = (word_and_articles*) p1;
   word_and_articles* wa2 = (word_and_articles*) p2;
   
-  return StringCompare( &(wa1->word), (&(wa2->word) ) );
+  return StringCompare( &(wa1->word), &(wa2->word) );
 }
 
 static void w_and_aDispose(void* p)
 {
   word_and_articles* wa = (word_and_articles*) p;
   free(wa->word);
-  VectorDispose(wa->articles);
+  VectorDispose(&(wa->articles) );
 }
 
 typedef struct {
-  url* url;  // We could have stored char*, but this is more convenient later when 
+  url url;  // We could have stored char*, but this is more convenient later when 
             // we'll need to get server name.
   char* title;  // Article title
 } article;
@@ -180,28 +180,28 @@ static void ArticleDispose(void* p)
 {
   article* a = (article*) p;
   free(a->title);
-  URLDispose(a->url);
+  URLDispose(&(a->url) );
 }
 
-// Note that this function supports only linear search in vector.
+// Note that this function supports only linear search for vector.
 static int ArticleCompare(const void * p1, const void * p2)
 {
   article* a1 = (article*) p1;
   article* a2 = (article*) p2;
   // Two articles are equal when their urls are the same or when
   // theyr titles and servers are the same.
-  bool sameUrl = strcmp(a1->url->fullName, a2->url->fullName) == 0;
+  bool sameUrl = strcmp(a1->url.fullName, a2->url.fullName) == 0;
   bool sameProvider = (
     strcmp(a1->title, a2->title) == 0 
     && 
-    strcmp(a1->url->serverName, a2->url->serverName) == 0
+    strcmp(a1->url.serverName, a2->url.serverName) == 0
   );
   if(sameUrl || sameProvider) return 0;
   return 1;
 }
 
 typedef struct {
-  article* article;
+  article  article;
   int cnt;
 } wcnt; // Word Count in Article
 
@@ -226,9 +226,9 @@ typedef struct {
 
 
 
-static const int numBuckets = 1009;
-
 /* simple helper functions */
+
+static const int numBuckets = 1009;
 
 static void InitializeStructures(hashset* stop, hashset* idx, vector* indexedArticles)
 {
@@ -395,6 +395,10 @@ static void Welcome(const char *welcomeTextPath)
  * and then extracts the URL.  It then relies on ProcessFeed to pull the remote
  * document and index its content.
  *
+ * NOTE: logically, stop hashset could be consted in this function, but for 
+ * some reason HashSetLookup function has not const contract. Other containers
+ * are not constant for obvious reasons.
+ *
  * @param feedsFileURL the full path leading to the flat text file storing up all of the
  *                     URLs of XML RSS feeds.
  */
@@ -402,7 +406,6 @@ static void Welcome(const char *welcomeTextPath)
 static const int kNumIndexEntryBuckets = 10007;
 static void BuildIndices(const char *feedsFilePath, hashset* stop, hashset* idx, vector* indexedArticles)
 {
-  // Just like in Welcome, converting to local files.
   FILE *fp;
   fp = fopen(feedsFilePath, "r");
   if(fp == NULL) 
@@ -418,8 +421,7 @@ static void BuildIndices(const char *feedsFilePath, hashset* stop, hashset* idx,
   while (STSkipUntil(&st, ":") != EOF) { // ignore everything up to the first selicolon of the line
     STSkipOver(&st, ": ");		   // now ignore the semicolon and any whitespace directly after it
     STNextToken(&st, remoteDocumentURL, sizeof(remoteDocumentURL));
-/*    static int i = 0;*/
-/*    printf("Feed #%d: %s\n", ++i, remoteDocumentURL);*/
+    // Assuming 2048 chars can hold that url, if not: url owners problem
     ProcessFeed(remoteDocumentURL, stop, idx, indexedArticles);
   }
   
@@ -450,7 +452,6 @@ static void ProcessFeed(const char *remoteDocumentURL, hashset* stop, hashset* i
       case 0: printf("Unable to connect to \"%s\".  Ignoring...\n", u.serverName);
         break;
       case 200: PullAllNewsItems(&urlconn, stop, idx, indexedArticles);
-/*        printf("Yes? %s\n", u.serverName);*/
         break;
       case 301: 
       case 302: ProcessFeed(urlconn.newUrl, stop, idx, indexedArticles);
@@ -504,8 +505,8 @@ static void PullAllNewsItems(urlconnection *urlconn, hashset* stop, hashset* idx
   XML_SetCharacterDataHandler(rssFeedParser, ProcessTextData);
 
   STNew(&st, urlconn->dataStream, "\n", false);
+  // Assuming xml file does not go more than col 2048 deep.
   while (STNextToken(&st, buffer, sizeof(buffer))) {
-/*    printf("buffered: %s\n", buffer);*/
     XML_Parse(rssFeedParser, buffer, strlen(buffer), false);
   }
   STDispose(&st);
@@ -568,7 +569,6 @@ static void ProcessEndTag(void *userData, const char *name)
   item->activeField = NULL;
   if (strcasecmp(name, "item") == 0)
   {
-    // TODO: Pass containers
     ParseArticle(item->title, item->url, item->stop, item->idx, item->indexedArticles);  
   }
 }
@@ -636,14 +636,21 @@ static void ParseArticle(char *articleTitle, const char *articleURL, hashset* st
   URLNewAbsolute(&u, articleURL);
   // At this point we can decide if this article is being indexed twice:
   article a;
-  a.url = &u;
-  a.title = articleTitle;
-  if(VectorSearch(indexedArticles, &a, ArticleCompare, 0, false) != -1) return;
-  // Need to dynamically alocate article struct, in a deep way,
-  // thats why it is better to store actual structs in containers instead of
-  // pointers.
-  // TODO: rewrite in such a way.
-/*  VectorAppend(&indexedArticles, )*/
+  a.url = u;
+  char* title = (char*) malloc(strlen(articleTitle) + 1);
+  assert(title != NULL);
+  a.title = title;
+  memcpy(a.title, articleTitle, strlen(articleTitle) + 1);
+  if(VectorSearch(indexedArticles, &a, ArticleCompare, 0, false) != -1)
+  {
+    // Don't leak!!!
+    ArticleDispose(&a);
+    return;
+  }
+  // If still here, article was not found.
+  // In that case, we can store it in indexedArticles.
+  // Also, we don't need to pass indexedArticles any more.
+  VectorAppend(indexedArticles, &a);
   
   URLConnectionNew(&urlconn, &u);
 
@@ -652,7 +659,7 @@ static void ParseArticle(char *articleTitle, const char *articleURL, hashset* st
           break;
       case 200: printf("[%s] Indexing \"%s\"\n", u.serverName, articleTitle);
 	        STNew(&st, urlconn.dataStream, kTextDelimiters, false);
-          ScanArticle(&st, articleTitle, articleURL);
+          ScanArticle(&st, articleTitle, articleURL, stop, idx);
 		      STDispose(&st);
 	        break;
       case 301: 
@@ -680,12 +687,9 @@ static void ParseArticle(char *articleTitle, const char *articleURL, hashset* st
  * code that indexes the specified content.
  */
 
-static void ScanArticle(streamtokenizer *st, const char *articleTitle, const char *articleURL)
+static void ScanArticle(streamtokenizer *st, const char *articleTitle, const char *articleURL, hashset* stop, hashset* idx)
 {
-  // I don't care about longest word or word count, so comment out below
-/*  int numWords = 0;*/
   char word[1024];
-/*  char longestWord[1024] = {'\0'};*/
 
   while (STNextToken(st, word, sizeof(word))) 
   {
@@ -694,10 +698,7 @@ static void ScanArticle(streamtokenizer *st, const char *articleTitle, const cha
     } else {
       RemoveEscapeCharacters(word); // in html-utils.h
       if (WordIsWellFormed(word)) {
-        indexWord(word, sizeof(word), articleTitle, articleURL);
-/*	      numWords++;*/
-/*	      if (strlen(word) > strlen(longestWord))*/
-/*	        strcpy(longestWord, word);*/
+        indexWord(word, sizeof(word), articleTitle, articleURL, stop, idx);
       }
     }
   }
@@ -720,7 +721,7 @@ static void ScanArticle(streamtokenizer *st, const char *articleTitle, const cha
  * it is.
  */
 
-static void indexWord(char* word, size_t wordSize, const char* articleTitle, const char* articleURL)
+static void indexWord(char* word, size_t wordSize, const char* articleTitle, const char* articleURL, hashset* stop, hashset* idx)
 {
   // TODO
 }
