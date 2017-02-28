@@ -42,7 +42,7 @@ static bool WordIsWellFormed(const char *word);
 
 
 
-/* functions stop words hashset */
+/* functions for stop words hashset */
 
 /** 
  * Function: StringHash                     
@@ -104,7 +104,7 @@ static void StringDispose(void* p)
   free(s);
 }
 
-/* end functions for structures */
+/* end functions for stop words hashset */
 
 
 
@@ -138,8 +138,8 @@ static void StringDispose(void* p)
  */
  
 typedef struct {
-  char* name;
-  char* URL;
+  const char* const name;
+  const char* const URL;
 } article;
 
 /**
@@ -163,8 +163,28 @@ typedef struct {
   vector* articles; // vector that will hold articleAppearances
 } wordIndex;
 
-// TODO: necessary functions to use containers of these structs
+// WordIndex functions will basically wrap string functions.
+static int WordIndexHash(const void* p, int numBuckets)
+{
+  wordIndex* wi = (wordIndex*) p;
+  return StringHash(&(wi->word), numBuckets);
+}
 
+static int WordIndexCompare(const void * p1, const void * p2)
+{
+  wordIndex* wi1 = (wordIndex*) p1;
+  wordIndex* wi2 = (wordIndex*) p2;
+  
+  return StringCompare(&(wi1->word), (&(wi2->word) ) );
+}
+
+static void WordIndexDispose(void* p)
+{
+  wordIndex* wi = (wordIndex*) p;
+  free(wi->word);
+  VectorDispose(wi->articles);
+}
+// end WordIndex functions
 
 
 
