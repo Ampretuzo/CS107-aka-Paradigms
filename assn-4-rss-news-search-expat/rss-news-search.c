@@ -30,8 +30,8 @@ static void ProcessEndTag(void *userData, const char *name);
 static void ProcessTextData(void *userData, const char *text, int len);
 static void ParseArticle(const char *articleTitle, const char *articleURL);
 static void ScanArticle(streamtokenizer *st, const char *articleTitle, const char *articleURL);
-static void QueryIndices();
-static void ProcessResponse(const char *word);
+static void QueryIndices(hashset* stop);
+static void ProcessResponse(const char *word, hashset* stop);
 static bool WordIsWellFormed(const char *word);
 
 
@@ -255,8 +255,8 @@ int main(int argc, char **argv)
   
   Welcome(kWelcomeTextPath);
   GetStopWords(&stop);
-  BuildIndices(feedsFilePath);
-/*  QueryIndices();*/
+/*  BuildIndices(feedsFilePath);*/
+  QueryIndices(&stop);
   
   DisposeStructures(&stop);
 
@@ -651,7 +651,7 @@ static void ScanArticle(streamtokenizer *st, const char *articleTitle, const cha
  * then proceeds (via ProcessResponse) to list up to 10 articles (sorted by relevance)
  * that contain that word.
  */
-static void QueryIndices()
+static void QueryIndices(hashset* stop)
 {
   char response[1024];
   while (true) {
@@ -659,7 +659,7 @@ static void QueryIndices()
     fgets(response, sizeof(response), stdin);
     response[strlen(response) - 1] = '\0';
     if (strcasecmp(response, "") == 0) break;
-    ProcessResponse(response);
+    ProcessResponse(response, stop);
   }
 }
 
@@ -670,9 +670,15 @@ static void QueryIndices()
  * for a list of web documents containing the specified word.
  */
 
-static void ProcessResponse(const char *word)
+static void ProcessResponse(const char *word, hashset* stop)
 {
   if (WordIsWellFormed(word)) {
+    // First of all, take care of high entropy cases
+    if(HashSetLookup(stop, &word) != NULL)
+    {
+      printf("The word \"%s\" is too common. Try something else.\n", word);
+      return;
+    }
     printf("\tWell, we don't have the database mapping words to online news articles yet, but if we DID have\n");
     printf("\tour hashset of indices, we'd list all of the articles containing \"%s\".\n", word);
   } else {
