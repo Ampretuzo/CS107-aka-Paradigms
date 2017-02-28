@@ -13,12 +13,15 @@
 #include "vector.h"
 #include "hashset.h"
 
-// TODO: add containers
 typedef struct {
   char title[2048];
   char description[2048];
   char url[2048];
   char *activeField;
+  // For expat callback:
+  hashset* stop;
+  hashset* idx;
+  vector* indexedArticles;
 } rssFeedItem;
 
 static void GetStopWords(hashset* stop);
@@ -487,10 +490,13 @@ static void ProcessFeed(const char *remoteDocumentURL, hashset* stop, hashset* i
 static void PullAllNewsItems(urlconnection *urlconn, hashset* stop, hashset* idx, vector* indexedArticles)
 {
   rssFeedItem item;
+  // To pass:
+  item.stop = stop;
+  item.idx = idx;
+  item.indexedArticles = indexedArticles;
+  
   streamtokenizer st;
   char buffer[2048];
-
-  // TODO: I have to incorporate hashsets into item, so that it is usable when parsing
 
   XML_Parser rssFeedParser = XML_ParserCreate(NULL);
   XML_SetUserData(rssFeedParser, &item);
@@ -561,7 +567,10 @@ static void ProcessEndTag(void *userData, const char *name)
   rssFeedItem *item = userData;
   item->activeField = NULL;
   if (strcasecmp(name, "item") == 0)
-    ParseArticle(item->title, item->url);
+  {
+    // TODO: Pass containers
+    ParseArticle(item->title, item->url);  
+  }
 }
 
 /**
