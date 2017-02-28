@@ -149,6 +149,28 @@ static void ArticleDispose(void* p)
   free(a->URL);
 }
 
+static bool sameTitleAndServer(article* a1, article* a2)
+{
+  bool titlesMatch = (strcmp(a1->name, a2->name) == 0);
+  bool serverMatch = false; // TODO: for now, not letting any duplication 
+  return titlesMatch && serverMatch;
+}
+
+/*
+ * Two articles are the same if the come from exact same URL, or their title
+ * AND come from the same server.
+ */
+ 
+static int ArticleCompare(const void* p1, const void* p2)
+{
+  article* a1 = (article*) p1;
+  article* a2 = (article*) p2;
+  // Return 0 if two articles are the same:
+  if(strcmp(a1->URL, a2->URL) == 0 || sameTitleAndServer(a1, a2) ) return 0;
+  // otherwise just consider urls
+  return strcmp(a1->URL, a2->URL);  // TODO: is this OK?
+}
+
 /**
  * This is a helper struct to keep article and number of word appearances 
  * in that article.
@@ -164,6 +186,16 @@ static void ArticleAppearanceDispose(void* p)
   // just wrap
   articleAppearance* aa = (articleAppearance*) p;
   ArticleDispose(aa->article);
+}
+
+static int ArticleAppearanceCompare(const void* p1, const void* p2)
+{
+  articleAppearance* a1 = (articleAppearance*) p1;
+  articleAppearance* a2 = (articleAppearance*) p2;
+  // Return 0 if two articles are the same:
+  if(strcmp(a1->article->URL, a2->article->URL) == 0 || sameTitleAndServer(a1->article, a2->article) ) return 0;
+  // otherwise just consider urls
+  return strcmp(a1->article->URL, a2->article->URL);  // TODO: is this OK?
 }
 
 /**
