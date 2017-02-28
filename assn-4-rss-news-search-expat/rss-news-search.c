@@ -138,9 +138,16 @@ static void StringDispose(void* p)
  */
  
 typedef struct {
-  const char* const name;
-  const char* const URL;
+  char* const name;
+  char* const URL;
 } article;
+
+static void ArticleDispose(void* p)
+{
+  article* a = (article*) p;
+  free(a->name);
+  free(a->URL);
+}
 
 /**
  * This is a helper struct to keep article and number of word appearances 
@@ -151,6 +158,13 @@ typedef struct {
   article* article;
   int appearance;
 } articleAppearance;
+
+static void ArticleAppearanceDispose(void* p)
+{
+  // just wrap
+  articleAppearance* aa = (articleAppearance*) p;
+  ArticleDispose(aa->article);
+}
 
 /**
  * index structure.
