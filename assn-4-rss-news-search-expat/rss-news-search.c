@@ -22,17 +22,17 @@ typedef struct {
 
 static void GetStopWords(hashset* stop);
 static void Welcome(const char *welcomeTextURL);
-static void BuildIndices(const char *feedsFileURL);
-static void ProcessFeed(const char *remoteDocumentURL);
-static void PullAllNewsItems(urlconnection *urlconn);
+static void BuildIndices(const char *feedsFileURL, hashset* stop, hashset* idx, vector* indexedArticles);
+static void ProcessFeed(const char *remoteDocumentURL, hashset* stop, hashset* idx, vector* indexedArticles);
+static void PullAllNewsItems(urlconnection *urlconn, hashset* stop, hashset* idx, vector* indexedArticles);
 static void ProcessStartTag(void *userData, const char *name, const char **atts);
 static void ProcessEndTag(void *userData, const char *name);
 static void ProcessTextData(void *userData, const char *text, int len);
 static void ParseArticle(const char *articleTitle, const char *articleURL);
 static void ScanArticle(streamtokenizer *st, const char *articleTitle, const char *articleURL);
 static void indexWord(char* word, size_t wordSize, const char* articleTitle, const char* articleURL);
-static void QueryIndices(hashset* stop);
-static void ProcessResponse(const char *word, hashset* stop);
+static void QueryIndices(hashset* stop, hashset* idx);
+static void ProcessResponse(const char *word, hashset* stop, hashset* idx);
 static bool WordIsWellFormed(const char *word);
 
 
@@ -293,8 +293,8 @@ int main(int argc, char **argv)
   
   Welcome(kWelcomeTextPath);
   GetStopWords(&stop);
-  BuildIndices(feedsFilePath);
-  QueryIndices(&stop);
+  BuildIndices(feedsFilePath, &stop, &idx, &indexedArticles);
+  QueryIndices(&stop, &idx);
   
   DisposeStructures(&stop, &idx, &indexedArticles);
 
@@ -394,7 +394,7 @@ static void Welcome(const char *welcomeTextPath)
  */
 
 static const int kNumIndexEntryBuckets = 10007;
-static void BuildIndices(const char *feedsFilePath)
+static void BuildIndices(const char *feedsFilePath, hashset* stop, hashset* idx, vector* indexedArticles)
 {
   // Just like in Welcome, converting to local files.
   FILE *fp;
@@ -414,7 +414,7 @@ static void BuildIndices(const char *feedsFilePath)
     STNextToken(&st, remoteDocumentURL, sizeof(remoteDocumentURL));
 /*    static int i = 0;*/
 /*    printf("Feed #%d: %s\n", ++i, remoteDocumentURL);*/
-    ProcessFeed(remoteDocumentURL);
+    ProcessFeed(remoteDocumentURL, stop, idx, indexedArticles);
   }
   
   printf("\n");
@@ -432,7 +432,7 @@ static void BuildIndices(const char *feedsFilePath)
  * for ParseArticle for information about what the different response codes mean.
  */
 
-static void ProcessFeed(const char *remoteDocumentURL)
+static void ProcessFeed(const char *remoteDocumentURL, hashset* stop, hashset* idx, vector* indexedArticles)
 {
   url u;
   urlconnection urlconn;
@@ -443,11 +443,11 @@ static void ProcessFeed(const char *remoteDocumentURL)
   switch (urlconn.responseCode) {
       case 0: printf("Unable to connect to \"%s\".  Ignoring...\n", u.serverName);
         break;
-      case 200: PullAllNewsItems(&urlconn);
+      case 200: PullAllNewsItems(&urlconn, stop, idx, indexedArticles);
 /*        printf("Yes? %s\n", u.serverName);*/
         break;
       case 301: 
-      case 302: ProcessFeed(urlconn.newUrl);
+      case 302: ProcessFeed(urlconn.newUrl, stop, idx, indexedArticles);
         break;
       default: printf("Connection to \"%s\" was established, but unable to retrieve \"%s\". [response code: %d, response message:\"%s\"]\n",
 		    u.serverName, u.fileName, urlconn.responseCode, urlconn.responseMessage);
@@ -481,7 +481,7 @@ static void ProcessFeed(const char *remoteDocumentURL)
  *
  */
 
-static void PullAllNewsItems(urlconnection *urlconn)
+static void PullAllNewsItems(urlconnection *urlconn, hashset* stop, hashset* idx, vector* indexedArticles)
 {
   rssFeedItem item;
   streamtokenizer st;
@@ -707,7 +707,7 @@ static void indexWord(char* word, size_t wordSize, const char* articleTitle, con
  * then proceeds (via ProcessResponse) to list up to 10 articles (sorted by relevance)
  * that contain that word.
  */
-static void QueryIndices(hashset* stop)
+static void QueryIndices(hashset* stop, hashset* idx)
 {
   char response[1024];
   while (true) {
@@ -715,7 +715,7 @@ static void QueryIndices(hashset* stop)
     fgets(response, sizeof(response), stdin);
     response[strlen(response) - 1] = '\0';
     if (strcasecmp(response, "") == 0) break;
-    ProcessResponse(response, stop);
+    ProcessResponse(response, stop, idx);
   }
 }
 
@@ -726,7 +726,7 @@ static void QueryIndices(hashset* stop)
  * for a list of web documents containing the specified word.
  */
 
-static void ProcessResponse(const char *word, hashset* stop)
+static void ProcessResponse(const char *word, hashset* stop, hashset* idx)
 {
   if (WordIsWellFormed(word)) {
     // First of all, take care of high entropy cases
