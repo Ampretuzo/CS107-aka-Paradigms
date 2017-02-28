@@ -13,6 +13,7 @@
 #include "vector.h"
 #include "hashset.h"
 
+// TODO: add containers
 typedef struct {
   char title[2048];
   char description[2048];
@@ -186,11 +187,13 @@ static int ArticleCompare(const void * p1, const void * p2)
   article* a2 = (article*) p2;
   // Two articles are equal when their urls are the same or when
   // theyr titles and servers are the same.
-  if(
-    strcmp(a1->url->fullName, a2->url->fullName) == 0 
-    ||
-    (strcmp(a1->title, a2->title) && strcmp(a1->url->serverName, a2->url->serverName) ) 
-  ) return 0;
+  bool sameUrl = strcmp(a1->url->fullName, a2->url->fullName) == 0;
+  bool sameProvider = (
+    strcmp(a1->title, a2->title) == 0 
+    && 
+    strcmp(a1->url->serverName, a2->url->serverName) == 0
+  );
+  if(sameUrl || sameProvider) return 0;
   return 1;
 }
 
@@ -486,6 +489,8 @@ static void PullAllNewsItems(urlconnection *urlconn, hashset* stop, hashset* idx
   rssFeedItem item;
   streamtokenizer st;
   char buffer[2048];
+
+  // TODO: I have to incorporate hashsets into item, so that it is usable when parsing
 
   XML_Parser rssFeedParser = XML_ParserCreate(NULL);
   XML_SetUserData(rssFeedParser, &item);
