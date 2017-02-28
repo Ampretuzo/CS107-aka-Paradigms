@@ -213,15 +213,17 @@ static const int numBuckets = 1009;
 
 /* simple helper functions */
 
-static void InitializeStructures(hashset* stop)
+static void InitializeStructures(hashset* stop, hashset* idx)
 {
-  // initialize stop hashset
   HashSetNew(stop, sizeof(char*), numBuckets, StringHash, StringCompare, StringDispose);
+  HashSetNew(idx, sizeof(wordIndex), numBuckets /* note that underlying key is string */,
+    WordIndexHash, WordIndexCompare, WordIndexDispose);
 }
 
-static void DisposeStructures(hashset* stop)
+static void DisposeStructures(hashset* stop, hashset* idx)
 {
   HashSetDispose(stop);
+  HashSetDispose(idx);
 }
 
 /* end simple helper functions */
@@ -271,15 +273,16 @@ int main(int argc, char **argv)
   const char *feedsFilePath = (argc == 1) ? kDefaultFeedsFilePath : argv[1];
   
   hashset stop; // this hashset will contain... well, stop words.
+  hashset idx;  // index
   
-  InitializeStructures(&stop);
+  InitializeStructures(&stop, &idx);
   
   Welcome(kWelcomeTextPath);
   GetStopWords(&stop);
   BuildIndices(feedsFilePath);
   QueryIndices(&stop);
   
-  DisposeStructures(&stop);
+  DisposeStructures(&stop, &idx);
 
   return 0;
 }
