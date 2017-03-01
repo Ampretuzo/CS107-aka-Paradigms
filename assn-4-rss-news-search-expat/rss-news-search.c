@@ -180,6 +180,24 @@ typedef struct {
   char* title;  // Article title
 } article;
 
+/**
+ * Function: Article
+ * -----------------
+ * Takes char* of string that are not necessarily dynamically allocated and
+ * copies them into heap. Because of that, article struct is persistent
+ * to stack changes.
+ */
+static void Article(article* article, const char *absolutePath, const char* title)
+{
+  // Make own dynamically allocated title and set article->title to it
+  char* titleD = (char*) malloc(strlen(title) + 1);
+  assert(titleD != NULL);
+  memcpy(titleD, title, strlen(title) + 1);
+  article->title = titleD;
+  // Create url struct
+  URLNewAbsolute(&(article->url), absolutePath);
+}
+
 static void ArticleDispose(void* p)
 {
   article* a = (article*) p;
@@ -304,7 +322,7 @@ int main(int argc, char **argv)
   Welcome(kWelcomeTextPath);
   GetStopWords(&stop);
   BuildIndices(feedsFilePath, &stop, &idx, &indexedArticles);
-  QueryIndices(&stop, &idx);
+/*  QueryIndices(&stop, &idx);*/
   
   DisposeStructures(&stop, &idx, &indexedArticles);
 
@@ -646,35 +664,30 @@ static void ProcessTextData(void *userData, const char *text, int len)
 static const char *const kTextDelimiters = " \t\n\r\b!@$%^*()_+={[}]|\\'\":;/?.>,<~`";
 static void ParseArticle(char *articleTitle, const char *articleURL, hashset* stop, hashset* idx, vector* indexedArticles)
 {
-  url u;
+  article ar;
+  Article(&ar, articleURL, articleTitle);
+  
   urlconnection urlconn;
   streamtokenizer st;
   
-  URLNewAbsolute(&u, articleURL);
-  // At this point we can decide if this article is being indexed twice:
-  article a;
-  a.url = u;
-  char* title = (char*) malloc(strlen(articleTitle) + 1);
-  assert(title != NULL);
-  a.title = title;
-  memcpy(a.title, articleTitle, strlen(articleTitle) + 1);
-  if(VectorSearch(indexedArticles, &a, ArticleCompare, 0, false) != -1)
+  if(VectorSearch(indexedArticles, &ar, ArticleCompare, 0, false) != -1)
   {
+    printf("Blocked duplicate article: [%s] \"%s\'\n", ar.url.serverName, ar.title);
     // Don't leak!!!
-    ArticleDispose(&a);
+    ArticleDispose(&ar);
     return;
   }
   // If still here, article was not found.
   // In that case, we can store it in indexedArticles.
   // Also, we don't need to pass indexedArticles any more.
-  VectorAppend(indexedArticles, &a);
+  VectorAppend(indexedArticles, &ar);
   
-  URLConnectionNew(&urlconn, &u);
+  URLConnectionNew(&urlconn, &(ar.url) );
 
   switch (urlconn.responseCode) {
       case 0: printf("Unable to connect to \"%s\".  Domain name or IP address is nonexistent.\n", articleURL);
           break;
-      case 200: printf("[%s] Indexing \"%s\"\n", u.serverName, articleTitle);
+      case 200: printf("[%s] Indexing \"%s\"\n", ar.url.serverName, ar.title);
 	        STNew(&st, urlconn.dataStream, kTextDelimiters, false);
           ScanArticle(&st, articleTitle, articleURL, stop, idx);
 		      STDispose(&st);
@@ -683,12 +696,11 @@ static void ParseArticle(char *articleTitle, const char *articleURL, hashset* st
       case 302: // just pretend we have the redirected URL all along, though index using the new URL and not the old one...
 	        ParseArticle(articleTitle, urlconn.newUrl, stop, idx, indexedArticles);
 		      break;
-      default: printf("Unable to pull \"%s\" from \"%s\". [Response code: %d] Punting...\n", articleTitle, u.serverName, urlconn.responseCode);
+      default: printf("Unable to pull \"%s\" from \"%s\". [Response code: %d] Punting...\n", ar.title, ar.url.serverName, urlconn.responseCode);
 	        break;
   }
   
   URLConnectionDispose(&urlconn);
-  URLDispose(&u);
 }
 
 /**
