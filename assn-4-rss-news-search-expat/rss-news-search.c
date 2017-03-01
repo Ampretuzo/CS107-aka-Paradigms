@@ -15,9 +15,14 @@
 
 typedef struct {
   char title[2048];
+  size_t titleSize; // Size information has to be passed, otherwise 
+                    // array will decay into pointer.
   char description[2048];
+  size_t descriptionSize;
   char url[2048];
+  size_t urlSize;
   char *activeField;
+  size_t activeFieldSize;
   // For expat callback:
   hashset* stop;
   hashset* idx;
@@ -491,6 +496,11 @@ static void ProcessFeed(const char *remoteDocumentURL, hashset* stop, hashset* i
 static void PullAllNewsItems(urlconnection *urlconn, hashset* stop, hashset* idx, vector* indexedArticles)
 {
   rssFeedItem item;
+  item.titleSize = sizeof(item.title);
+  item.urlSize = sizeof(item.url);
+  item.descriptionSize = sizeof(item.description);
+  item.activeFieldSize = sizeof(item.activeField);
+  item.activeField = NULL;
   // To pass:
   item.stop = stop;
   item.idx = idx;
@@ -539,7 +549,17 @@ static void ProcessStartTag(void *userData, const char *name, const char **atts)
 {
   rssFeedItem *item = userData;
   if (strcasecmp(name, "item") == 0) {
-    memset(item, 0, sizeof(rssFeedItem));
+    /*
+     * After extensive GDB, I found out that this was the source of Segfault.
+     * Pointers to containers would be zeroed out, which obviously causes
+     * bad things in ParseArticle.
+     * We have to be more careful when doing this.
+     */
+    memset(item->title, 0, item->titleSize );
+    memset(item->description, 0, item->descriptionSize );
+    memset(item->url, 0, item->urlSize );
+    memset(item->activeField, 0, item->activeFieldSize );
+    printf("sizes:\n%d, %d, %d, %d\n", item->titleSize, item->descriptionSize, item->urlSize, item->activeFieldSize);
   } else if (strcasecmp(name, "title") == 0) {
     item->activeField = item->title;
   } else if (strcasecmp(name, "description") == 0) {
