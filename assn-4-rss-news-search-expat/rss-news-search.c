@@ -22,7 +22,6 @@ typedef struct {
   char url[2048];
   size_t urlSize;
   char *activeField;
-  size_t activeFieldSize;
   // For expat callback:
   hashset* stop;
   hashset* idx;
@@ -499,7 +498,6 @@ static void PullAllNewsItems(urlconnection *urlconn, hashset* stop, hashset* idx
   item.titleSize = sizeof(item.title);
   item.urlSize = sizeof(item.url);
   item.descriptionSize = sizeof(item.description);
-  item.activeFieldSize = sizeof(item.activeField);
   item.activeField = NULL;
   // To pass:
   item.stop = stop;
@@ -558,8 +556,7 @@ static void ProcessStartTag(void *userData, const char *name, const char **atts)
     memset(item->title, 0, item->titleSize );
     memset(item->description, 0, item->descriptionSize );
     memset(item->url, 0, item->urlSize );
-    memset(item->activeField, 0, item->activeFieldSize );
-    printf("sizes:\n%d, %d, %d, %d\n", item->titleSize, item->descriptionSize, item->urlSize, item->activeFieldSize);
+    item->activeField = NULL;
   } else if (strcasecmp(name, "title") == 0) {
     item->activeField = item->title;
   } else if (strcasecmp(name, "description") == 0) {
