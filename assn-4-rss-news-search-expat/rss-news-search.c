@@ -28,22 +28,6 @@ typedef struct {
   vector* indexedArticles;
 } rssFeedItem;
 
-static void GetStopWords(hashset* stop);
-static void Welcome(const char *welcomeTextURL);
-static void BuildIndices(const char *feedsFileURL, hashset* stop, hashset* idx, vector* indexedArticles);
-static void ProcessFeed(const char *remoteDocumentURL, hashset* stop, hashset* idx, vector* indexedArticles);
-static void PullAllNewsItems(urlconnection *urlconn, hashset* stop, hashset* idx, vector* indexedArticles);
-static void ProcessStartTag(void *userData, const char *name, const char **atts);
-static void ProcessEndTag(void *userData, const char *name);
-static void ProcessTextData(void *userData, const char *text, int len);
-static void ParseArticle(char *articleTitle, const char *articleURL, hashset* stop, hashset* idx, vector* indexedArticles);
-static void ScanArticle(streamtokenizer *st, const char *articleTitle, const char *articleURL, hashset* stop, hashset* idx);
-static void indexWord(char* word, size_t wordSize, const char* articleTitle, const char* articleURL, hashset* stop, hashset* idx);
-static void QueryIndices(hashset* stop, hashset* idx);
-static void ProcessResponse(const char *word, hashset* stop, hashset* idx);
-static bool WordIsWellFormed(const char *word);
-
-
 
 
 
@@ -167,13 +151,6 @@ static int w_and_aCompare(const void * p1, const void * p2)
   return StringCompare( &(wa1->word), &(wa2->word) );
 }
 
-static void w_and_aDispose(void* p)
-{
-  word_and_articles* wa = (word_and_articles*) p;
-  free(wa->word);
-  VectorDispose(&(wa->articles) );
-}
-
 typedef struct {
   url url;  // We could have stored char*, but this is more convenient later when 
             // we'll need to get server name.
@@ -235,17 +212,40 @@ static void WCNT(wcnt* wcnt, const article* article)
   wcnt->cnt = 0;
 }
 
-static void WCNTDispose(wcnt* wcnt)
+static void WCNTDispose(void* p)
 {
+  wcnt* wcount = (wcnt*) p;
   // We only have to take care of an article.
   // In that sense this is a wrapper.
-  ArticleDispose(&(wcnt->article) );
+  ArticleDispose(&(wcount->article) );
 }
 
-// TODO these structures need functions like comparators and destructors.
-// Add when needed.
+static int WCNTCompare(const void* p1, const void* p2)
+{
+  // This function will be used after blocking identical articles.
+  // Knowing this, we can simply compare article urls.
+  wcnt* wCount1 = (wcnt*) p1;
+  wcnt* wCount2 = (wcnt*) p2;
+  return strcmp(wCount1->article.url.fullName, wCount2->article.url.fullName);
+}
 
+// w_and_a functions:
 
+static void w_and_a(word_and_articles* w_and_a, const char* str)
+{
+  char* word = (char*) malloc(strlen(str) + 1);
+  assert(word != NULL);
+  memcpy(word, str, strlen(str) + 1);
+  w_and_a->word = word;
+  VectorNew(&(w_and_a->articles), sizeof(wcnt), WCNTDispose, 0);  
+}
+
+static void w_and_aDispose(void* p)
+{
+  word_and_articles* w_and_a = (word_and_articles*) p;
+  free(w_and_a->word);
+  VectorDispose(&(w_and_a->articles) );
+}
 
 
 
@@ -287,6 +287,31 @@ static void DisposeStructures(hashset* stop, hashset* idx, vector* indexedArticl
 }
 
 /* end simple helper functions */
+
+
+
+
+
+
+
+
+
+
+
+static void GetStopWords(hashset* stop);
+static void Welcome(const char *welcomeTextURL);
+static void BuildIndices(const char *feedsFileURL, hashset* stop, hashset* idx, vector* indexedArticles);
+static void ProcessFeed(const char *remoteDocumentURL, hashset* stop, hashset* idx, vector* indexedArticles);
+static void PullAllNewsItems(urlconnection *urlconn, hashset* stop, hashset* idx, vector* indexedArticles);
+static void ProcessStartTag(void *userData, const char *name, const char **atts);
+static void ProcessEndTag(void *userData, const char *name);
+static void ProcessTextData(void *userData, const char *text, int len);
+static void ParseArticle(char *articleTitle, const char *articleURL, hashset* stop, hashset* idx, vector* indexedArticles);
+static void ScanArticle(streamtokenizer *st, const article* ar, hashset* stop, hashset* idx);
+static void indexWord(char* word, size_t wordSize, const article* ar, hashset* stop, hashset* idx);
+static void QueryIndices(hashset* stop, hashset* idx);
+static void ProcessResponse(const char *word, hashset* stop, hashset* idx);
+static bool WordIsWellFormed(const char *word);
 
 
 
@@ -708,7 +733,7 @@ static void ParseArticle(char *articleTitle, const char *articleURL, hashset* st
           break;
       case 200: printf("[%s] Indexing \"%s\"\n", ar.url.serverName, ar.title);
 	        STNew(&st, urlconn.dataStream, kTextDelimiters, false);
-          ScanArticle(&st, articleTitle, articleURL, stop, idx);
+          ScanArticle(&st, &ar, stop, idx);
 		      STDispose(&st);
 	        break;
       case 301: 
@@ -735,7 +760,7 @@ static void ParseArticle(char *articleTitle, const char *articleURL, hashset* st
  * code that indexes the specified content.
  */
 
-static void ScanArticle(streamtokenizer *st, const char *articleTitle, const char *articleURL, hashset* stop, hashset* idx)
+static void ScanArticle(streamtokenizer *st, const article* ar, hashset* stop, hashset* idx)
 {
   char word[1024];
 
@@ -746,7 +771,7 @@ static void ScanArticle(streamtokenizer *st, const char *articleTitle, const cha
     } else {
       RemoveEscapeCharacters(word); // in html-utils.h
       if (WordIsWellFormed(word)) {
-        indexWord(word, sizeof(word), articleTitle, articleURL, stop, idx);
+        indexWord(word, sizeof(word), ar, stop, idx);
       }
     }
   }
@@ -764,9 +789,35 @@ static void ScanArticle(streamtokenizer *st, const char *articleTitle, const cha
  * it is.
  */
 
-static void indexWord(char* word, size_t wordSize, const char* articleTitle, const char* articleURL, hashset* stop, hashset* idx)
+static void indexWord(char* word, size_t wordSize, const article* ar, hashset* stop, hashset* idx)
 {
+
+  /* 
+   * First of all, we have to see if there is an entry in idx corresponding
+   * to given word.
+   * If there isn't, we add one.
+   * Then, we see if vector in corresponding entry already contains 
+   * given article, in that case - we increment cnt.
+   * Article lookup in a vector can be done only using one attribute, because
+   * identical articles are already taken care of.
+   */
+  
+  word_and_articles wa;
+  w_and_a(&wa, word);
+  word_and_articles* found = (word_and_articles*) HashSetLookup(idx, &wa);
+  // if word not found, add one
+  if(found == NULL)
+  {
+    HashSetEnter(idx, &wa);
+  }
+  // to see if vector contains we have to build wcnt
+  wcnt w;
+  WCNT(&w, ar);
+  wcnt* wCount = (wcnt*) VectorSearch(&(wa.articles), &w, WCNTCompare, 0, false);
+  // If article was not found, we have to add one. Then we increment its
+  // word count.
   // TODO
+  
 }
 
 /** 
