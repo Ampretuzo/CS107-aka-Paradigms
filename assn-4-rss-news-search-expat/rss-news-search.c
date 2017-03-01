@@ -867,6 +867,13 @@ static void ProcessResponse(const char *word, hashset* stop, hashset* idx)
       printf("The word \"%s\" is too common. Try something else.\n", word);
       return;
     }
+    word_and_articles wa;
+    w_and_a(&wa, word);
+    word_and_articles* found = (word_and_articles*) HashSetLookup(idx, &wa);
+    if(found == NULL) 
+    {
+      printf("The word \"%s\" was not found anywhere. Try something else.\n", word);
+    }
     // TODO
   } else {
     printf("\tWe won't be allowing words like \"%s\" into our set of indices.\n", word);
