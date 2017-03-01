@@ -146,10 +146,10 @@ static void StringDispose(void* p)
  * Ultimately we will create a hashset of these, using string functions to
  * hash and compare.
  */
-
+  
 typedef struct {
   char* word; // the word 
-  vector articles; // vector that will hold articleAppearances
+  vector articles; // vector that will hold wcnt structs
 } word_and_articles;
 
 // word_and_articles functions will basically wrap string functions.
@@ -227,8 +227,27 @@ typedef struct {
   int cnt;
 } wcnt; // Word Count in Article
 
+static void WCNT(wcnt* wcnt, const article* article)
+{
+  // Copy const
+  Article(&(wcnt->article), article->url.fullName, article->title);
+  // Init count to zero.
+  wcnt->cnt = 0;
+}
+
+static void WCNTDispose(wcnt* wcnt)
+{
+  // We only have to take care of an article.
+  // In that sense this is a wrapper.
+  ArticleDispose(&(wcnt->article) );
+}
+
 // TODO these structures need functions like comparators and destructors.
 // Add when needed.
+
+
+
+
 
 
 
@@ -731,19 +750,14 @@ static void ScanArticle(streamtokenizer *st, const char *articleTitle, const cha
       }
     }
   }
-
-/*  printf("\tWe counted %d well-formed words [including duplicates].\n", numWords);*/
-/*  printf("\tThe longest word scanned was \"%s\".", longestWord);*/
-/*  if (strlen(longestWord) >= 15 && (strchr(longestWord, '-') == NULL)) */
-/*    printf(" [Ooooo... long word!]");*/
-/*  printf("\n");*/
+  
 }
 
 /**
  * Function: indexWord
  * -------------------
  * Update index for word.
- * Ideally, word might be incomplete char array buffer, in which case we 
+ * Theoretically, word might be incomplete char array buffer, in which case we 
  * should wait successive calls to finish started text.
  * But in reality it is good enough to just take buffer as as complete word
  * and index it that way, especially when wordSize is as large as 1024, which
