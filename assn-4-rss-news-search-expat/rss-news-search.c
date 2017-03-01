@@ -813,16 +813,17 @@ static void indexWord(char* word, size_t wordSize, const article* ar, hashset* s
   // to see if vector contains we have to build wcnt
   wcnt w;
   WCNT(&w, ar);
-  wcnt* wCount = (wcnt*) VectorSearch(&(wa.articles), &w, WCNTCompare, 0, false);
+  int pos = VectorSearch(&(wa.articles), &w, WCNTCompare, 0, false);
   // If article was not found, we have to add one. Then we increment its
   // word count.
-  if(wCount == NULL)
+  if(pos == -1)
   {
     // Increment from 0 to 1.
     w.cnt = 1;
     VectorAppend( &(wa.articles), &w);
   } else {
-    wCount->cnt++;
+    wcnt* wCount = (wcnt*) VectorNth( &(wa.articles), pos);
+    wCount->cnt ++;
   }
   
   
