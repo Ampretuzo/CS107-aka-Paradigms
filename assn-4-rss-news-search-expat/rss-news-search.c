@@ -229,6 +229,15 @@ static int WCNTCompare(const void* p1, const void* p2)
   return strcmp(wCount1->article.url.fullName, wCount2->article.url.fullName);
 }
 
+static int WCNTCompareFreq(const void* p1, const void* p2)
+{
+  // This function will be used after blocking identical articles.
+  // Knowing this, we can simply compare article urls.
+  wcnt* wCount1 = (wcnt*) p1;
+  wcnt* wCount2 = (wcnt*) p2;
+  return wCount1->cnt - wCount2->cnt;
+}
+
 // w_and_a functions:
 
 static void w_and_a(word_and_articles* w_and_a, const char* str)
@@ -874,7 +883,9 @@ static void ProcessResponse(const char *word, hashset* stop, hashset* idx)
     {
       printf("The word \"%s\" was not found anywhere. Try something else.\n", word);
     }
-    // TODO
+    // sort by cnt
+    VectorSort( &(found->articles), WCNTCompareFreq);
+    
   } else {
     printf("\tWe won't be allowing words like \"%s\" into our set of indices.\n", word);
   }
