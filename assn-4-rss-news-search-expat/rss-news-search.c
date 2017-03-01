@@ -204,6 +204,13 @@ typedef struct {
   int cnt;
 } wcnt; // Word Count in Article
 
+static void WCNTDisplayForIndex(void* p, void* auxData)
+{
+  wcnt* s = (wcnt*) p;
+  FILE* fp = (FILE*) auxData;
+  fprintf(fp, "\"%s\", %d number of times\n", s->article.title, s->cnt);
+}
+
 static void WCNT(wcnt* wcnt, const article* article)
 {
   // Copy const
@@ -882,10 +889,12 @@ static void ProcessResponse(const char *word, hashset* stop, hashset* idx)
     if(found == NULL) 
     {
       printf("The word \"%s\" was not found anywhere. Try something else.\n", word);
+      return;
     }
     // sort by cnt
     VectorSort( &(found->articles), WCNTCompareFreq);
-    
+    printf("The word \"%s\" appeared in:\n", word);
+    VectorMap( &(found->articles), WCNTDisplayForIndex, stdout);
   } else {
     printf("\tWe won't be allowing words like \"%s\" into our set of indices.\n", word);
   }
