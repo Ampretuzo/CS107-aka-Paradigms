@@ -366,7 +366,7 @@ int main(int argc, char **argv)
   Welcome(kWelcomeTextPath);
   GetStopWords(&stop);
   BuildIndices(feedsFilePath, &stop, &idx, &indexedArticles);
-/*  QueryIndices(&stop, &idx);*/
+  QueryIndices(&stop, &idx);
   
   DisposeStructures(&stop, &idx, &indexedArticles);
 
@@ -802,6 +802,8 @@ static void indexWord(char* word, size_t wordSize, const article* ar, hashset* s
    * identical articles are already taken care of.
    */
   
+  if(!WordIsWellFormed(word) ) return;  // Don'tbother on bad words
+  
   word_and_articles wa;
   w_and_a(&wa, word);
   word_and_articles* found = (word_and_articles*) HashSetLookup(idx, &wa);
@@ -813,6 +815,7 @@ static void indexWord(char* word, size_t wordSize, const article* ar, hashset* s
   // to see if vector contains we have to build wcnt
   wcnt w;
   WCNT(&w, ar);
+  // TODO: sorting not leveraged.
   int pos = VectorSearch(&(wa.articles), &w, WCNTCompare, 0, false);
   // If article was not found, we have to add one. Then we increment its
   // word count.
@@ -864,8 +867,7 @@ static void ProcessResponse(const char *word, hashset* stop, hashset* idx)
       printf("The word \"%s\" is too common. Try something else.\n", word);
       return;
     }
-    printf("\tWell, we don't have the database mapping words to online news articles yet, but if we DID have\n");
-    printf("\tour hashset of indices, we'd list all of the articles containing \"%s\".\n", word);
+    // TODO
   } else {
     printf("\tWe won't be allowing words like \"%s\" into our set of indices.\n", word);
   }
