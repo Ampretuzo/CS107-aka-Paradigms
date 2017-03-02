@@ -148,8 +148,11 @@ static int w_and_aCompare(const void * p1, const void * p2)
   word_and_articles* wa1 = (word_and_articles*) p1;
   word_and_articles* wa2 = (word_and_articles*) p2;
   
-  return StringCompare( &(wa1->word), &(wa2->word) );
+  return strcasecmp(wa1->word, wa2->word);
 }
+
+// Note that since above two functions only touch word string it is safe
+// to edit articles vector in of word_and_articles in hashset.
 
 typedef struct {
   url url;  // We could have stored char*, but this is more convenient later when 
@@ -208,7 +211,7 @@ static void WCNTDisplayForIndex(void* p, void* auxData)
 {
   wcnt* s = (wcnt*) p;
   FILE* fp = (FILE*) auxData;
-  fprintf(fp, "\"%s\", %d number of times\n", s->article.title, s->cnt);
+  fprintf(fp, "on [%s] in an article \"%s\", %d number of times\n", s->article.url.serverName, s->article.title, s->cnt);
 }
 
 static void WCNT(wcnt* wcnt, const article* article)
@@ -242,7 +245,7 @@ static int WCNTCompareFreq(const void* p1, const void* p2)
   // Knowing this, we can simply compare article urls.
   wcnt* wCount1 = (wcnt*) p1;
   wcnt* wCount2 = (wcnt*) p2;
-  return wCount1->cnt - wCount2->cnt;
+  return wCount2->cnt - wCount1->cnt;
 }
 
 // w_and_a functions:
