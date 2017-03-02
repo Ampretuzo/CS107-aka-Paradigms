@@ -786,9 +786,7 @@ static void ScanArticle(streamtokenizer *st, const article* ar, hashset* stop, h
       SkipIrrelevantContent(st); // in html-utls.h
     } else {
       RemoveEscapeCharacters(word); // in html-utils.h
-      if (WordIsWellFormed(word)) {
-        indexWord(word, sizeof(word), ar, stop, idx);
-      }
+      indexWord(word, sizeof(word), ar, stop, idx);
     }
   }
   
@@ -818,7 +816,8 @@ static void indexWord(char* word, size_t wordSize, const article* ar, hashset* s
    * identical articles are already taken care of.
    */
   
-  if(!WordIsWellFormed(word) ) return;  // Don'tbother on bad words
+  if(!WordIsWellFormed(word) ) return;  // Don't bother on bad words
+  if(HashSetLookup(stop, &word) != NULL) return;  // Don't bother on stop words
   
   word_and_articles wa;
   w_and_a(&wa, word);
@@ -832,17 +831,19 @@ static void indexWord(char* word, size_t wordSize, const article* ar, hashset* s
   wcnt w;
   WCNT(&w, ar);
   // TODO: sorting not leveraged.
-  int pos = VectorSearch(&(wa.articles), &w, WCNTCompare, 0, false);
+  int pos = VectorSearch( &(found->articles), &w, WCNTCompare, 0, false);
   // If article was not found, we have to add one. Then we increment its
   // word count.
+  // Note that we can change in hashset elements everything except the word 
+  // string since its the only parameter used by container.
   if(pos == -1)
   {
     // Increment from 0 to 1.
     w.cnt = 1;
-    VectorAppend( &(wa.articles), &w);
+    VectorAppend( &(found->articles), &w);
   } else {
-    wcnt* wCount = (wcnt*) VectorNth( &(wa.articles), pos);
-    wCount->cnt ++;
+    wcnt* wCount = (wcnt*) VectorNth( &(found->articles), pos);
+    (wCount->cnt) ++;
   }
   
   
@@ -893,7 +894,8 @@ static void ProcessResponse(const char *word, hashset* stop, hashset* idx)
     }
     // sort by cnt
     VectorSort( &(found->articles), WCNTCompareFreq);
-    printf("The word \"%s\" appeared in:\n", word);
+    printf("The word \"%s\" appeared in %d articles:\n", 
+      word, VectorLength(&(found->articles) ) );
     VectorMap( &(found->articles), WCNTDisplayForIndex, stdout);
   } else {
     printf("\tWe won't be allowing words like \"%s\" into our set of indices.\n", word);
