@@ -740,7 +740,7 @@ static void ParseArticle(char *articleTitle, const char *articleURL, hashset* st
   {
     printf("Blocked duplicate article: [%s] \"%s\'\n", ar.url.serverName, ar.title);
     article* ar_found = (article*) VectorNth(indexedArticles, pos);
-    printf("Duplicate of \"%s\".\n", ar_found->title);
+    printf("\tDuplicate of \"%s\".\n", ar_found->title);
     // Don't leak!!!
     ArticleDispose(&ar);
     return;
