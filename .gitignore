@@ -1,5 +1,6 @@
-# ignoring data files
+# ignoring data files folders containing unedited material
 assn-1-rsg-data
 assn-2-six-degrees-data
 assn-3-vector-hashset-data
-
+assn-4-rss-news-search
+assn-4-rss-news-search-lib
