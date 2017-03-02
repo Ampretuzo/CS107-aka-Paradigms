@@ -1,3 +1,2 @@
 Fox Busyness: http://feeds.foxbusiness.com/foxbusiness/latest?format=xml
-CNN Fake News Portal: http://rss.cnn.com/rss/cnn_us..xml
-Fox Busyness (see if it blocks duplicates): http://feeds.foxbusiness.com/foxbusiness/latest?format=xml
+

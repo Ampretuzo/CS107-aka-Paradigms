@@ -58,14 +58,14 @@ static int StringHash(const void* p, int numBuckets)
 /**
  * Function: StringCompare
  * -----------------------
- * This is basically a strcmp wrapper.
+ * This is basically a strcasecmp wrapper.
  */
 static int StringCompare(const void * p1, const void * p2)
 {
   char* s1 = * (char**) p1;
   char* s2 = * (char**) p2;
   
-  return strcmp(s1, s2);
+  return strcasecmp(s1, s2);
 }
 
 /** 
@@ -148,7 +148,7 @@ static int w_and_aCompare(const void * p1, const void * p2)
   word_and_articles* wa1 = (word_and_articles*) p1;
   word_and_articles* wa2 = (word_and_articles*) p2;
   
-  return strcasecmp(wa1->word, wa2->word);
+  return StringCompare( &(wa1->word), &(wa2->word) );
 }
 
 // Note that since above two functions only touch word string it is safe
@@ -174,7 +174,7 @@ static void Article(article* article, const char *absolutePath, const char* titl
   assert(article->title != NULL);
   memcpy(article->title, title, strlen(title) + 1);
   // Create url struct
-  URLNewAbsolute(&(article->url), absolutePath);
+  URLNewAbsolute( &(article->url), absolutePath);
 }
 
 static void ArticleDispose(void* p)
@@ -191,9 +191,9 @@ static int ArticleCompare(const void * p1, const void * p2)
   article* a2 = (article*) p2;
   // Two articles are equal when their urls are the same or when
   // theyr titles and servers are the same.
-  bool sameUrl = strcmp(a1->url.fullName, a2->url.fullName) == 0;
+  bool sameUrl = ( strcmp(a1->url.fullName, a2->url.fullName) == 0 );
   bool sameProvider = (
-    strcmp(a1->title, a2->title) == 0 
+    strcasecmp(a1->title, a2->title) == 0 
     && 
     strcmp(a1->url.serverName, a2->url.serverName) == 0
   );
@@ -210,9 +210,9 @@ typedef struct {
 static void WCNTDisplayForIndex(void* p, void* auxData)
 {
   wcnt* s = (wcnt*) p;
-  article ar = s->article;
+  article* ar = &(s->article);
   FILE* fp = (FILE*) auxData;
-  fprintf(fp, "on [%s] in an article \"%s\", %d number of times\n", ar.url.serverName, ar.title, s->cnt);
+  fprintf(fp, "on [%s] in an article \"%s\", %d number of times\n", ar->url.serverName, ar->title, s->cnt);
 }
 
 static void WCNT(wcnt* wcnt, const article* article)
@@ -735,9 +735,12 @@ static void ParseArticle(char *articleTitle, const char *articleURL, hashset* st
   urlconnection urlconn;
   streamtokenizer st;
   
-  if(VectorSearch(indexedArticles, &ar, ArticleCompare, 0, false) != -1)
+  int pos = VectorSearch(indexedArticles, &ar, ArticleCompare, 0, false);
+  if(pos != -1)
   {
     printf("Blocked duplicate article: [%s] \"%s\'\n", ar.url.serverName, ar.title);
+    article* ar_found = (article*) VectorNth(indexedArticles, pos);
+    printf("Duplicate of \"%s\".\n", ar_found->title);
     // Don't leak!!!
     ArticleDispose(&ar);
     return;
@@ -766,7 +769,7 @@ static void ParseArticle(char *articleTitle, const char *articleURL, hashset* st
   }
   
   // Don't leak!
-  ArticleDispose(&ar);
+  // Disposing of ar is indexedArticless responsibility.
   URLConnectionDispose(&urlconn);
 }
 
