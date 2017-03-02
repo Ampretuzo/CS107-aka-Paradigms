@@ -81,7 +81,7 @@ static void StringPrint(void* p, void* auxData)
 {
   char* s = * (char**) p;
   FILE* fp = (FILE*) auxData;
-  fprintf(fp, "%s\n", s);
+  fprintf(fp, "%s ", s);
 }
 
 /**
@@ -170,10 +170,9 @@ typedef struct {
 static void Article(article* article, const char *absolutePath, const char* title)
 {
   // Make own dynamically allocated title and set article->title to it
-  char* titleD = (char*) malloc(strlen(title) + 1);
-  assert(titleD != NULL);
-  memcpy(titleD, title, strlen(title) + 1);
-  article->title = titleD;
+  article->title = (char*) malloc(strlen(title) + 1);
+  assert(article->title != NULL);
+  memcpy(article->title, title, strlen(title) + 1);
   // Create url struct
   URLNewAbsolute(&(article->url), absolutePath);
 }
@@ -202,22 +201,24 @@ static int ArticleCompare(const void * p1, const void * p2)
   return 1;
 }
 
+// These will be stored in word_and_articles's vector
 typedef struct {
   article  article;
   int cnt;
-} wcnt; // Word Count in Article
+} wcnt; // wcnt for Word Count in Article. Definitely not a good name..
 
 static void WCNTDisplayForIndex(void* p, void* auxData)
 {
   wcnt* s = (wcnt*) p;
+  article ar = s->article;
   FILE* fp = (FILE*) auxData;
-  fprintf(fp, "on [%s] in an article \"%s\", %d number of times\n", s->article.url.serverName, s->article.title, s->cnt);
+  fprintf(fp, "on [%s] in an article \"%s\", %d number of times\n", ar.url.serverName, ar.title, s->cnt);
 }
 
 static void WCNT(wcnt* wcnt, const article* article)
 {
   // Copy const
-  Article(&(wcnt->article), article->url.fullName, article->title);
+  Article( &(wcnt->article), article->url.fullName, article->title);
   // Init count to zero.
   wcnt->cnt = 0;
 }
@@ -227,7 +228,7 @@ static void WCNTDispose(void* p)
   wcnt* wcount = (wcnt*) p;
   // We only have to take care of an article.
   // In that sense this is a wrapper.
-  ArticleDispose(&(wcount->article) );
+  ArticleDispose( &(wcount->article) );
 }
 
 static int WCNTCompare(const void* p1, const void* p2)
@@ -235,14 +236,15 @@ static int WCNTCompare(const void* p1, const void* p2)
   // This function will be used after blocking identical articles.
   // Knowing this, we can simply compare article urls.
   wcnt* wCount1 = (wcnt*) p1;
+  url* url1 = &(wCount1->article.url);
   wcnt* wCount2 = (wcnt*) p2;
-  return strcmp(wCount1->article.url.fullName, wCount2->article.url.fullName);
+  url* url2 = &(wCount2->article.url);
+  return strcmp(url1->fullName, url2->fullName);
 }
 
 static int WCNTCompareFreq(const void* p1, const void* p2)
 {
-  // This function will be used after blocking identical articles.
-  // Knowing this, we can simply compare article urls.
+  // Just to sort by frequency:
   wcnt* wCount1 = (wcnt*) p1;
   wcnt* wCount2 = (wcnt*) p2;
   return wCount2->cnt - wCount1->cnt;
@@ -250,20 +252,19 @@ static int WCNTCompareFreq(const void* p1, const void* p2)
 
 // w_and_a functions:
 
-static void w_and_a(word_and_articles* w_and_a, const char* str)
+static void w_and_a(word_and_articles* w_and_a, const char* word)
 {
-  char* word = (char*) malloc(strlen(str) + 1);
-  assert(word != NULL);
-  memcpy(word, str, strlen(str) + 1);
-  w_and_a->word = word;
-  VectorNew(&(w_and_a->articles), sizeof(wcnt), WCNTDispose, 0);  
+  w_and_a->word = (char*) malloc(strlen(word) + 1);
+  assert(w_and_a->word != NULL);
+  memcpy(w_and_a->word, word, strlen(word) + 1);
+  VectorNew( &(w_and_a->articles), sizeof(wcnt), WCNTDispose, 0);  
 }
 
 static void w_and_aDispose(void* p)
 {
   word_and_articles* w_and_a = (word_and_articles*) p;
   free(w_and_a->word);
-  VectorDispose(&(w_and_a->articles) );
+  VectorDispose( &(w_and_a->articles) );
 }
 
 
@@ -384,6 +385,7 @@ int main(int argc, char **argv)
   
   Welcome(kWelcomeTextPath);
   GetStopWords(&stop);
+/*  HashSetMap(&stop, StringPrint, stdout); printf("\n");*/
   BuildIndices(feedsFilePath, &stop, &idx, &indexedArticles);
   QueryIndices(&stop, &idx);
   
@@ -763,6 +765,8 @@ static void ParseArticle(char *articleTitle, const char *articleURL, hashset* st
 	        break;
   }
   
+  // Don't leak!
+  ArticleDispose(&ar);
   URLConnectionDispose(&urlconn);
 }
 
@@ -783,7 +787,7 @@ static void ScanArticle(streamtokenizer *st, const article* ar, hashset* stop, h
 {
   char word[1024];
 
-  while (STNextToken(st, word, sizeof(word))) 
+  while (STNextToken(st, word, sizeof(word) ) ) 
   {
     if (strcasecmp(word, "<") == 0) {
       SkipIrrelevantContent(st); // in html-utls.h
@@ -809,6 +813,9 @@ static void ScanArticle(streamtokenizer *st, const article* ar, hashset* stop, h
 static void indexWord(char* word, size_t wordSize, const article* ar, hashset* stop, hashset* idx)
 {
 
+  if(!WordIsWellFormed(word) ) return;  // Don't bother on bad words
+  if(HashSetLookup(stop, &word) != NULL) return;  // Don't bother on stop words
+
   /* 
    * First of all, we have to see if there is an entry in idx corresponding
    * to given word.
@@ -819,18 +826,20 @@ static void indexWord(char* word, size_t wordSize, const article* ar, hashset* s
    * identical articles are already taken care of.
    */
   
-  if(!WordIsWellFormed(word) ) return;  // Don't bother on bad words
-  if(HashSetLookup(stop, &word) != NULL) return;  // Don't bother on stop words
-  
   word_and_articles wa;
   w_and_a(&wa, word);
   word_and_articles* found = (word_and_articles*) HashSetLookup(idx, &wa);
   // if word not found, add one
   if(found == NULL)
   {
+    // in this case disposing responsibility goes to hashset.
     HashSetEnter(idx, &wa);
+    found = (word_and_articles*) HashSetLookup(idx, &wa);
+  } else {
+    // In this case, we have to dispose wa.
+    w_and_aDispose(&wa);  
   }
-  found = (word_and_articles*) HashSetLookup(idx, &wa);
+
   // to see if vector contains we have to build wcnt
   wcnt w;
   WCNT(&w, ar);
@@ -848,6 +857,8 @@ static void indexWord(char* word, size_t wordSize, const article* ar, hashset* s
   } else {
     wcnt* wCount = (wcnt*) VectorNth( &(found->articles), pos);
     (wCount->cnt) ++;
+    // Again, it is out responsibility to dispose w.
+    WCNTDispose(&w);
   }
   
   
@@ -870,6 +881,7 @@ static void QueryIndices(hashset* stop, hashset* idx)
     if (strcasecmp(response, "") == 0) break;
     ProcessResponse(response, stop, idx);
   }
+  printf("Thanks for using DumbSearch!\n");
 }
 
 /** 
