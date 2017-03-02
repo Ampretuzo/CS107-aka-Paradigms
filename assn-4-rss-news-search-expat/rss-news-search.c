@@ -827,6 +827,7 @@ static void indexWord(char* word, size_t wordSize, const article* ar, hashset* s
   {
     HashSetEnter(idx, &wa);
   }
+  found = (word_and_articles*) HashSetLookup(idx, &wa);
   // to see if vector contains we have to build wcnt
   wcnt w;
   WCNT(&w, ar);
