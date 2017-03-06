@@ -116,6 +116,26 @@ Assignment 5
     My Intel chip turns out to be little-endian.
     
 4.
+  (i)
+    Using only pointers:
+  
+    void foo() {
+      int** a;
+      int* b;
+      a[0] = b + 1;
+    }
+  
+  
+  (ii)
+    Using only int
+    
+    void bar() {
+      int num[2];
+      * (int*) num[1] = num[0] + 4;
+    }
+    
+5.
+    
   
   
   
