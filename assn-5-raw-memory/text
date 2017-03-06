@@ -1,0 +1,55 @@
+Assignment 5
+------------
+
+1.
+
+  (i)
+    Powers of two have all zeros except a single 1 according to which power
+    they are: 
+    4   =   0000100
+    16  =   0010000
+    64  =   1000000
+    ...
+    2^n =   1 and n zeroes afterwards
+    
+    Taking remainder of some binary number on 2^n means picking n last figures
+    from that number. 
+    E.g. 110100110 remainder on 16 (10000) would be 0110 = 110
+              ----                   ----
+    That can be achieved by AND-ing number on bit pattern which has all zeroes
+    except last n ones:
+              110100110
+        AND   000001111
+              ---------
+              000000110
+    
+    To get that pattern, we just have to take 2^n - 1.
+    So, the algorithm would read like this:
+    
+    def remainder(num, n):
+      return num AND (2**n - 1)
+    end
+    
+  (ii)
+    In twos complement system we flip bits and add one.
+    Flipping is done with NOT operator and adding one is done by adding one.
+    
+    def sigchange(num):
+      return NOT num + 1
+    end
+    
+    EDIT: NOT is done by XOR-ing on all ones, that is on -1:
+    
+    def sigchange2(num):
+      return (num XOR -1) + 1
+    end
+    
+  (iii)
+    If your file is n bits you should get a secret random n bit pattern and 
+    XOR with it (actually it can be any number of bits less than n but you'll
+    have to XOR repeatedly all the parts of the file).
+    XOR-ing it again with secret key will retrieve initial file.
+    
+2.
+  (i)
+    
