@@ -54,5 +54,71 @@ Assignment 5
   This was a rhetorical question.
   
 3.
+  (i)
+    ****
+    (gdb) x/s text
+    0x400574:	"hi!"
+    (gdb) x/d text
+    0x400574:	104
+    (gdb) x/i text
+    0x400574:	pushq  $0x1002169
+    (gdb) x/c text
+    0x400574:	104 'h'
+    (gdb) x/hu text
+    0x400574:	26984
+    (gdb) x/a text
+    0x400574:	0x3b031b0100216968
+    (gdb) x/t text
+    0x400574:	0011101100000011000110110000000100000000001000010110100101101000
+    (gdb) x/t 0x400574
+    0x400574:	0011101100000011000110110000000100000000001000010110100101101000
+
+    ****
+    (gdb) x/d &num
+    0x7fffffffdd9c:	3
+    (gdb) x/f &num
+    0x7fffffffdd9c:	4.20389539e-45
+    (gdb) x/c &num
+    0x7fffffffdd9c:	3 '\003'
+    
+    Idea was that we can interpret pure data as we want, as long as the
+    language gives us the means.
+    Which it does in case of C.
+    
+  (ii)
+    Little and big-endian differ by byte ordering.
+    E.g. unsigned short 5 takes 8 bits to represent, which in big-endian will
+    look like:
+      0000 0101.
+      ---------
+    That follows 'natural' way of representing data.
+    In little-endian systems bytes are swapped:
+      0101 0000
+      ---------
+  
+    To find out endiannes, we have to take two chars, '\0' and 'A'.
+    Putting them together, "\0A" would give 65 in big endian.
+    In little endian same string would correspond to some large number.
+    
+    void main()
+    {
+        char first = '\0';
+        char second = 'A';
+        unsigned short num;
+        memcpy(&num, &first, 1);
+        memcpy((char*) &num + 1, &second, 1);
+        if(num == 65)
+            printf("big endian..\n");
+        else
+            printf("little endian.. \n");
+    }
+  
+    My Intel chip turns out to be little-endian.
+    
+4.
+  
+  
+  
   
     
+
