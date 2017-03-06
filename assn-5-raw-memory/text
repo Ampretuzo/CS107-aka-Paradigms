@@ -135,7 +135,43 @@ Assignment 5
     }
     
 5.
+
+  const size_t num = kHeapSize - sizeOf(list) + 1;
+  
+  bool inBounds(void* pointer) {
+    return (pointer >= kHeapStart && ptr < (void*) ( (char*) kHeapStart + num) );
+  }
+
+  bool foo() {
+  
+    // Pay attention to for loop bounds.
+    for(int i = 0; i < num; i++) {
+      list* addr = (list*) ( (char*) kHeapStart + i);
+      
+      if( addr -> data == 1) {
+        list* p1 = addr -> next;
+        if( !inBounds(p1) ) continue;
+        
+        if( p1 -> data == 2) {
+          list* p2 = p1 -> next;
+          if( !inBounds(p2) ) continue;
+        
+          if( p2 -> data == 3) {
+            list* p3 = p2 -> next;
+            if( !inBounds(p3) ) continue;
+            
+            if( p3 -> next == NULL) return true;
+          }
+        }
+      }
+    }
     
+    return false;
+  }  
+  
+  Code is a little sloppy but the idea is clear.
+  
+6.
   
   
   
