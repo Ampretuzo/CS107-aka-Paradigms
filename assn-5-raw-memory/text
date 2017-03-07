@@ -275,3 +275,50 @@ Assignment 5
   
   RET
   
+8.
+
+  Think of classes as structs as far as data is concerned.
+  First argument of a method is a pointer to object (struct address basically).
+  Other arguments follow as expected.
+  
+  
+  SP = SP - 0                     // space for local vars
+  
+  //  line 1
+  R1 = SP + 8                     // addr to macewindu
+  R1 = M[R1]                      // macewindu val, which is the same as
+                                    // macewindu->council[0] addr
+  R2 = 2 * 40                     // scale array offset by 40 shorts 
+  R1 = R1 + R2
+  R8 = .2 M[R1]                   // 40th elem: macewindu->council[40] 
+  R8 = 4 * R8                     // scale it for pointer arithmetic
+  R1 = SP + 20                    // addr to obiwan.yoda
+  R9 = M[R1]                      // load obiwan.yoda
+  R8 = R9 + R8;                   // do arithmetic
+  M[R1] = R8                      // load back to obiwan.yoda
+  
+  // line 2
+  SP = SP - 12                    // make room for anakin args
+                                  // don't forget room for this arg
+  
+  R1 = M[SP + 16]                 // load this argument from prev call
+  M[SP] = R1                      // pass it as first arg to anakin
+  R1 = SP + 24                    // 12 + 12 to get where obiwan is stored
+  R2 = SP + 4                     // this is where second arg goes
+  M[R2] = R1                      // load second arg
+  // third argument is technically identical to first, because reference is
+  // passed as pointer under the hood:
+  R1 = M[SP + 16]                 // load this argument from prev call
+  R2 = SP + 8
+  M[R2] = R1                      // pass it as third arg to anakin
+  
+  CALL <jedimaster::anakin>
+  SP = SP + 8                     // cleanup args            
+
+  // RV will contain pointer to int, which should be deref first before
+  // returning:
+  RV = M[RV]
+  
+  SP = SP + 0                     // clear local vars
+  RET
+  
