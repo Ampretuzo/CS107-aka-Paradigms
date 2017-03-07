@@ -173,8 +173,52 @@ Assignment 5
   
 6.
   
-  
-  
-  
+  (a)
+    // line 1
+    SP = SP - 4                   // make space for bubs
     
+    // line 2
+    R1 = M[SP + 8]                // load strongmad.coachz value
+    R2 = M[SP + 24]               // load marzipan value
+    R3 = R2 + 4                   // calc address marzipan->thecheat
+    R4 = R3 + 4 * R1    // calc address of marzipan->thecheat[strongmad.coachz]
+    R5 = M[R4]                    // load value at R4
+    R6 = .2 M[R5]                 // deref short* R5
+    R7 = .1 M[SP]                 // bubs[0] as char
+    R8 = SP + R7                  // addr of bubs[*bubs]
+    M[R8] = .1 R6                 // finish
+    
+    // line 3
+    R1 = M[SP]                    // * (int*) bubs value
+    R2 = SP + 24                  // line 3 lhs address
+    R3 = M[R2]                    // line 3 lhd value
+    R1 = R1 * 4                   // scale R1 for pointer arithmetic
+    R4 = R3 + R1                  // actual arithmetic
+    M[R2] = R4                    // write
+    
+    SP = SP + 4                   // roll back to saved PC
+    RET
+    
+  (b)
+    // no local vars
+    SP = SP - 0
+    
+    // lay down parameters for function call
+    SP = SP - 8                   // make space
+    R1 = M[SP + 12]               // 8 up to saved PC and 4 more up for marshie
+    M[SP + 4] = R1                // put that address as second parameter
+    R2 = M[SP + 16]               // 8 up to saved PC and 8 more up for mrshmallow
+    M[SP] = R2                    // lay down first parameter
+    
+    CALL <puppetthing>            // actual call
+
+    SP = SP + 8                   // come back up where we were
+    
+    R1 = M[RV]                    // one deref of returned address
+    RV = M[R1 + 12]               // return value loaded
+        
+    SP = SP + 0                   // local vars cleanup
+    
+    RET
+
 
