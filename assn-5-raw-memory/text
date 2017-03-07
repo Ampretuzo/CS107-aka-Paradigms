@@ -221,4 +221,57 @@ Assignment 5
     
     RET
 
-
+7.
+  
+  SP = SP - 0
+  
+  // line 1
+  R1 = SP + 8                     // address to marvin.ford[] array
+  R2 = .1 M[R1]                   // first element value as char
+  R2 = 4 * R2                     // scale for int* arithmetic
+  R1 = SP + 36                    // address to deepthought
+  R3 = M[R1]                      // deepthought value
+  R1 = R3 + R2                    // address to deepthought[*marvin.ford]
+  R8 = M[R1]                      // value of deepthought[*marvin.ford]
+  
+  R1 = SP + 24                    // address to marvin.zaphod[] array
+  R2 = 2 * 100                    // offset scaled for shorts
+  R1 = R1 + R2                    // address to marvin.zaphod[100]
+  M[R1] = .2 R8                   // write R8 value to that address
+  
+  // line 2
+  R1 = SP + 4                     // address to marvin.arthur in stack
+  R1 = M[R1]                      // load marvin.arthur
+  R1 = M[R1]                      // deref once
+  R8 = .2 M[R1]                   // deref second time not forgetting its shortness
+  // calc address on lhs
+  R1 = SP + 24
+  R1 = R1 + 8
+  R1 = R1 + 20
+  M[R1] = R8                      // load saved R8 to calculated address
+  
+  // line 3
+  SP = SP - 8
+  
+  
+  R1 = SP + 12                    // address to marvin.arthur (don't forget +8)
+  R2 = M[R1]                      // load marvin.arthur
+  R1 = SP + 4                     // second arg address
+  M[R1] = R2                      // load second arg
+  
+  R1 = SP + 12                    // address to marvin (don't forget +8)
+  R2 = R1 + 32                    // pointer arithmetic with sizeof(galaxy)
+  M[SP] = R2                      // load that address as first arg
+  
+  CALL <hitchhikershuide>
+  SP = SP + 8
+  
+  // at this point RV will hold address to galaxy
+  R1 = RV + 0                     // address to somegalaxy.arthur
+  R1 = M[R1]                      // base addr to short* array
+  R2 = 4 * 10                     // offset 10 scaled by sizeof(short*)
+  R1 = R1 + R2                    // 10th elem addr
+  RV = M[R1]                      // load that value as short* return value
+  
+  RET
+  
