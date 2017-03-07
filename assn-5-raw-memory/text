@@ -1,0 +1,324 @@
+Assignment 5
+------------
+
+1.
+
+  (i)
+    Powers of two have all zeros except a single 1 according to which power
+    they are: 
+    4   =   0000100
+    16  =   0010000
+    64  =   1000000
+    ...
+    2^n =   1 and n zeroes afterwards
+    
+    Taking remainder of some binary number on 2^n means picking n last figures
+    from that number. 
+    E.g. 110100110 remainder on 16 (10000) would be 0110 = 110
+              ----                   ----
+    That can be achieved by AND-ing number on bit pattern which has all zeroes
+    except last n ones:
+              110100110
+        AND   000001111
+              ---------
+              000000110
+    
+    To get that pattern, we just have to take 2^n - 1.
+    So, the algorithm would read like this:
+    
+    def remainder(num, n):
+      return num AND (2**n - 1)
+    end
+    
+  (ii)
+    In twos complement system we flip bits and add one.
+    Flipping is done with NOT operator and adding one is done by adding one.
+    
+    def sigchange(num):
+      return NOT num + 1
+    end
+    
+    EDIT: NOT is done by XOR-ing on all ones, that is on -1:
+    
+    def sigchange2(num):
+      return (num XOR -1) + 1
+    end
+    
+  (iii)
+    If your file is n bits you should get a secret random n bit pattern and 
+    XOR with it (actually it can be any number of bits less than n but you'll
+    have to XOR repeatedly all the parts of the file).
+    XOR-ing it again with secret key will retrieve initial file.
+    
+2.
+  This was a rhetorical question.
+  
+3.
+  (i)
+    ****
+    (gdb) x/s text
+    0x400574:	"hi!"
+    (gdb) x/d text
+    0x400574:	104
+    (gdb) x/i text
+    0x400574:	pushq  $0x1002169
+    (gdb) x/c text
+    0x400574:	104 'h'
+    (gdb) x/hu text
+    0x400574:	26984
+    (gdb) x/a text
+    0x400574:	0x3b031b0100216968
+    (gdb) x/t text
+    0x400574:	0011101100000011000110110000000100000000001000010110100101101000
+    (gdb) x/t 0x400574
+    0x400574:	0011101100000011000110110000000100000000001000010110100101101000
+
+    ****
+    (gdb) x/d &num
+    0x7fffffffdd9c:	3
+    (gdb) x/f &num
+    0x7fffffffdd9c:	4.20389539e-45
+    (gdb) x/c &num
+    0x7fffffffdd9c:	3 '\003'
+    
+    Idea was that we can interpret pure data as we want, as long as the
+    language gives us the means.
+    Which it does in case of C.
+    
+  (ii)
+    Little and big-endian differ by byte ordering.
+    E.g. unsigned short 5 takes 8 bits to represent, which in big-endian will
+    look like:
+      0000 0101.
+      ---------
+    That follows 'natural' way of representing data.
+    In little-endian systems bytes are swapped:
+      0101 0000
+      ---------
+  
+    To find out endiannes, we have to take two chars, '\0' and 'A'.
+    Putting them together, "\0A" would give 65 in big endian.
+    In little endian same string would correspond to some large number.
+    
+    void main()
+    {
+        char first = '\0';
+        char second = 'A';
+        unsigned short num;
+        memcpy(&num, &first, 1);
+        memcpy((char*) &num + 1, &second, 1);
+        if(num == 65)
+            printf("big endian..\n");
+        else
+            printf("little endian.. \n");
+    }
+  
+    My Intel chip turns out to be little-endian.
+    
+4.
+  (i)
+    Using only pointers:
+  
+    void foo() {
+      int** a;
+      int* b;
+      a[0] = b + 1;
+    }
+  
+  
+  (ii)
+    Using only int
+    
+    void bar() {
+      int num[2];
+      * (int*) num[1] = num[0] + 4;
+    }
+    
+5.
+
+  const size_t num = kHeapSize - sizeOf(list) + 1;
+  
+  bool inBounds(void* pointer) {
+    return (pointer >= kHeapStart && ptr < (void*) ( (char*) kHeapStart + num) );
+  }
+
+  bool foo() {
+  
+    // Pay attention to for loop bounds.
+    for(int i = 0; i < num; i++) {
+      list* addr = (list*) ( (char*) kHeapStart + i);
+      
+      if( addr -> data == 1) {
+        list* p1 = addr -> next;
+        if( !inBounds(p1) ) continue;
+        
+        if( p1 -> data == 2) {
+          list* p2 = p1 -> next;
+          if( !inBounds(p2) ) continue;
+        
+          if( p2 -> data == 3) {
+            list* p3 = p2 -> next;
+            if( !inBounds(p3) ) continue;
+            
+            if( p3 -> next == NULL) return true;
+          }
+        }
+      }
+    }
+    
+    return false;
+  }  
+  
+  Code is a little sloppy but the idea is clear.
+  
+6.
+  
+  (a)
+    // line 1
+    SP = SP - 4                   // make space for bubs
+    
+    // line 2
+    R1 = M[SP + 8]                // load strongmad.coachz value
+    R2 = M[SP + 24]               // load marzipan value
+    R3 = R2 + 4                   // calc address marzipan->thecheat
+    R4 = R3 + 4 * R1    // calc address of marzipan->thecheat[strongmad.coachz]
+    R5 = M[R4]                    // load value at R4
+    R6 = .2 M[R5]                 // deref short* R5
+    R7 = .1 M[SP]                 // bubs[0] as char
+    R8 = SP + R7                  // addr of bubs[*bubs]
+    M[R8] = .1 R6                 // finish
+    
+    // line 3
+    R1 = M[SP]                    // * (int*) bubs value
+    R2 = SP + 24                  // line 3 lhs address
+    R3 = M[R2]                    // line 3 lhd value
+    R1 = R1 * 4                   // scale R1 for pointer arithmetic
+    R4 = R3 + R1                  // actual arithmetic
+    M[R2] = R4                    // write
+    
+    SP = SP + 4                   // roll back to saved PC
+    RET
+    
+  (b)
+    // no local vars
+    SP = SP - 0
+    
+    // lay down parameters for function call
+    SP = SP - 8                   // make space
+    R1 = M[SP + 12]               // 8 up to saved PC and 4 more up for marshie
+    M[SP + 4] = R1                // put that address as second parameter
+    R2 = M[SP + 16]               // 8 up to saved PC and 8 more up for mrshmallow
+    M[SP] = R2                    // lay down first parameter
+    
+    CALL <puppetthing>            // actual call
+
+    SP = SP + 8                   // come back up where we were
+    
+    R1 = M[RV]                    // one deref of returned address
+    RV = M[R1 + 12]               // return value loaded
+        
+    SP = SP + 0                   // local vars cleanup
+    
+    RET
+
+7.
+  
+  SP = SP - 0
+  
+  // line 1
+  R1 = SP + 8                     // address to marvin.ford[] array
+  R2 = .1 M[R1]                   // first element value as char
+  R2 = 4 * R2                     // scale for int* arithmetic
+  R1 = SP + 36                    // address to deepthought
+  R3 = M[R1]                      // deepthought value
+  R1 = R3 + R2                    // address to deepthought[*marvin.ford]
+  R8 = M[R1]                      // value of deepthought[*marvin.ford]
+  
+  R1 = SP + 24                    // address to marvin.zaphod[] array
+  R2 = 2 * 100                    // offset scaled for shorts
+  R1 = R1 + R2                    // address to marvin.zaphod[100]
+  M[R1] = .2 R8                   // write R8 value to that address
+  
+  // line 2
+  R1 = SP + 4                     // address to marvin.arthur in stack
+  R1 = M[R1]                      // load marvin.arthur
+  R1 = M[R1]                      // deref once
+  R8 = .2 M[R1]                   // deref second time not forgetting its shortness
+  // calc address on lhs
+  R1 = SP + 24
+  R1 = R1 + 8
+  R1 = R1 + 20
+  M[R1] = R8                      // load saved R8 to calculated address
+  
+  // line 3
+  SP = SP - 8
+  
+  
+  R1 = SP + 12                    // address to marvin.arthur (don't forget +8)
+  R2 = M[R1]                      // load marvin.arthur
+  R1 = SP + 4                     // second arg address
+  M[R1] = R2                      // load second arg
+  
+  R1 = SP + 12                    // address to marvin (don't forget +8)
+  R2 = R1 + 32                    // pointer arithmetic with sizeof(galaxy)
+  M[SP] = R2                      // load that address as first arg
+  
+  CALL <hitchhikershuide>
+  SP = SP + 8
+  
+  // at this point RV will hold address to galaxy
+  R1 = RV + 0                     // address to somegalaxy.arthur
+  R1 = M[R1]                      // base addr to short* array
+  R2 = 4 * 10                     // offset 10 scaled by sizeof(short*)
+  R1 = R1 + R2                    // 10th elem addr
+  RV = M[R1]                      // load that value as short* return value
+  
+  RET
+  
+8.
+
+  Think of classes as structs as far as data is concerned.
+  First argument of a method is a pointer to object (struct address basically).
+  Other arguments follow as expected.
+  
+  
+  SP = SP - 0                     // space for local vars
+  
+  //  line 1
+  R1 = SP + 8                     // addr to macewindu
+  R1 = M[R1]                      // macewindu val, which is the same as
+                                    // macewindu->council[0] addr
+  R2 = 2 * 40                     // scale array offset by 40 shorts 
+  R1 = R1 + R2
+  R8 = .2 M[R1]                   // 40th elem: macewindu->council[40] 
+  R8 = 4 * R8                     // scale it for pointer arithmetic
+  R1 = SP + 20                    // addr to obiwan.yoda
+  R9 = M[R1]                      // load obiwan.yoda
+  R8 = R9 + R8;                   // do arithmetic
+  M[R1] = R8                      // load back to obiwan.yoda
+  
+  // line 2
+  SP = SP - 12                    // make room for anakin args
+                                  // don't forget room for this arg
+  
+  R1 = M[SP + 16]                 // load this argument from prev call
+  M[SP] = R1                      // pass it as first arg to anakin
+  R1 = SP + 24                    // 12 + 12 to get where obiwan is stored
+  R2 = SP + 4                     // this is where second arg goes
+  M[R2] = R1                      // load second arg
+  // third argument is technically identical to first, because reference is
+  // passed as pointer under the hood:
+  R1 = M[SP + 16]                 // load this argument from prev call
+  R2 = SP + 8
+  M[R2] = R1                      // pass it as third arg to anakin
+  
+  CALL <jedimaster::anakin>
+  SP = SP + 8                     // cleanup args            
+
+  // RV will contain pointer to int, which should be deref first before
+  // returning:
+  RV = M[RV]
+  
+  SP = SP + 0                     // clear local vars
+  RET
+  
