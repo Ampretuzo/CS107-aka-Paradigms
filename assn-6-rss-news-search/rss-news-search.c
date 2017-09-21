@@ -4,6 +4,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <expat.h>
+#include <pthread.h>  // using pthread.h instead of unavailable thread_107.h
 
 #include "url.h"
 #include "bool.h"
@@ -12,7 +13,8 @@
 #include "html-utils.h"
 #include "vector.h"
 #include "hashset.h"
-#include "thread_107.h"
+// threads library not available
+// #include "thread_107.h"
 
 typedef struct {
   hashset stopWords;
@@ -106,7 +108,7 @@ int main(int argc, char **argv)
   const char *feedsFileName = (argc == 1) ? kDefaultFeedsFile : argv[1];
   rssDatabase db;
   
-  InitThreadPackage(false);
+  // InitThreadPackage(false);
   Welcome(kWelcomeTextFile);
   LoadStopWords(&db.stopWords, kDefaultStopWordsFile);
   BuildIndices(&db, feedsFileName);

@@ -10,6 +10,7 @@ CC = gcc
 ## a production build, but it is a good idea to leave it in
 ## for the purposes of this class.
 DFLAG = ## -DNDEBUG
+OSTYPE = linux
 
 ifeq ($(OSTYPE), solaris)
 	PLATFORM_LIBS = -lnsl -lsocket -lthread -lposix4
@@ -17,14 +18,14 @@ ifeq ($(OSTYPE), solaris)
 endif 
 ifeq ($(OSTYPE), linux)
 	PLATFORM_LIBS = -lnsl -lpthread
-	THREAD_LIBS = -lthread_107_linux
+	# THREAD_LIBS = -lthread_107_linux
 endif
 ifeq ($(OSTYPE), darwin)
 	PLATFORM_LIBS =
 endif
 
-CFLAGS = -D_REENTRANT -g -Wall -D__ostype_is_$(OSTYPE)__ -std=gnu99 -I/usr/class/cs107/include/ -Wno-unused-function $(DFLAG)
-LDFLAGS = -L/usr/class/cs107/assignments/assn-6-rss-news-search-lib/$(OSTYPE) -L/usr/class/cs107/lib -lexpat -lrssnews $(PLATFORM_LIBS) $(THREAD_LIBS)
+CFLAGS = -D_REENTRANT -g -Wall -D__ostype_is_$(OSTYPE)__ -std=gnu99 -Wno-unused-function $(DFLAG) -m32	# force 32 bit compilation
+LDFLAGS = -L/home/aro/dev/workspace/learn/CS107-aka-Paradigms/assn-6-rss-news-search-lib/$(OSTYPE) -lexpat -lrssnews $(PLATFORM_LIBS) $(THREAD_LIBS)
 PFLAGS= -linker=/usr/pubsw/bin/ld -best-effort -threads=yes -max-threads=1000
 
 SRCS = rss-news-search.c

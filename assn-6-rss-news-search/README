@@ -1,3 +1,11 @@
+NOTE:
+Same applies as to assn4.
+Had to remove unavailable libraries from makefile - using pthread.
+ENDNOTE.
+
+
+
+
 The version of the Assignment 4 solution you have here uses an 
 open source XML parser called expat.  For more information, you
 can visit expat.sourceforge.net.  Since my decision to go with
