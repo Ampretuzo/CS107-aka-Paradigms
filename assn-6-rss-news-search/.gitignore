@@ -9,3 +9,4 @@
 !rss-news-search.c
 !README
 # will add new files whenever changed
+!recompile-and-run.sh

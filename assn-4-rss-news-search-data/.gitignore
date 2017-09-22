@@ -6,4 +6,5 @@
 # and itself
 !.gitignore
 !welcome.txt
+!stop-words.txt
 

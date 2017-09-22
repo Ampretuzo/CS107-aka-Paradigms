@@ -84,6 +84,8 @@ static void IndexEntryFree(void *elem);
 static int ArticleIndexCompare(const void *elem1, const void *elem2);
 static int ArticleFrequencyCompare(const void *elem1, const void *elem2);
 
+static void printStopWord(char* elemAddr, void *auxData);
+
 /**
  * Function: main
  * --------------
@@ -101,7 +103,7 @@ static int ArticleFrequencyCompare(const void *elem1, const void *elem2);
  */
 
 static const char *const kWelcomeTextFile = "../assn-4-rss-news-search-data/welcome.txt";
-static const char *const kDefaultStopWordsFile = "http://cs107.stanford.edu/rss-news/stop-words.txt";
+static const char *const kDefaultStopWordsFile = "../assn-4-rss-news-search-data/stop-words.txt";
 static const char *const kDefaultFeedsFile = "../assn-4-rss-news-search-data/rss-feeds-not9yo.txt";
 int main(int argc, char **argv)
 {
@@ -110,11 +112,23 @@ int main(int argc, char **argv)
   
   // InitThreadPackage(false);
   Welcome(kWelcomeTextFile);
-  // LoadStopWords(&db.stopWords, kDefaultStopWordsFile);
+  LoadStopWords(&db.stopWords, kDefaultStopWordsFile);
+  HashSetMap(&(db.stopWords), printStopWord, NULL);
+  
   // BuildIndices(&db, feedsFileName);
   // QueryIndices(&db);
   return 0;
 }
+
+// utility functions
+
+static void printStopWord(char* elemAddr, void *auxData)
+{
+  assert(auxData == NULL);
+  printf("%s\n", * (char**) elemAddr);
+}
+
+// end utility functions
 
 /** 
  * Function: Welcome
@@ -176,28 +190,26 @@ static void Welcome(const char *welcomeTextURL)
 static const int kNumStopWordsBuckets = 1009;
 static void LoadStopWords(hashset *stopWords, const char *stopWordsURL)
 {
-  url u;
-  urlconnection urlconn;
+  FILE* fp;
+  fp = fopen(stopWordsURL, "r");
+  assert(fp != NULL);
   
-  URLNewAbsolute(&u, stopWordsURL);
-  URLConnectionNew(&urlconn, &u);
-  
-  if (urlconn.responseCode / 100 == 3) {
-    LoadStopWords(stopWords, urlconn.newUrl);
-  } else {
-    streamtokenizer st;
-    char buffer[4096];
-    HashSetNew(stopWords, sizeof(char *), kNumStopWordsBuckets, StringHash, StringCompare, StringFree);
-    STNew(&st, urlconn.dataStream, kNewLineDelimiters, true);
-    while (STNextToken(&st, buffer, sizeof(buffer))) {
-      char *stopWord = strdup(buffer);
-      HashSetEnter(stopWords, &stopWord);
-    }
-    STDispose(&st);
+  streamtokenizer st;
+  HashSetNew(stopWords, sizeof(char *), kNumStopWordsBuckets, StringHash, StringCompare, StringFree);
+  // we can be sure that no stop word will be longer than 128, because of that
+  // I don't even check if buffer containes finished word or not - 99.999% it will.
+  char buffer[128];
+  STNew(&st, fp, kNewLineDelimiters, true); // discarding delimiters
+  while (STNextToken(&st, buffer, sizeof(buffer) ) )
+  {
+    char* str = (char*) malloc(strlen(buffer) + 1);
+    assert(str != NULL);
+    memcpy(str, buffer, strlen(buffer) + 1);
+    HashSetEnter(stopWords, &str);
   }
-
-  URLConnectionDispose(&urlconn);
-  URLDispose(&u);
+   
+  STDispose(&st);
+  fclose(fp);
 }
 
 /**
