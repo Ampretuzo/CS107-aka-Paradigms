@@ -84,6 +84,11 @@ static void IndexEntryFree(void *elem);
 static int ArticleIndexCompare(const void *elem1, const void *elem2);
 static int ArticleFrequencyCompare(const void *elem1, const void *elem2);
 
+// utils
+static void DisposeRssDatabase(rssDatabase* db);
+static void InitializeRssDatabase(rssDatabase* db);
+static void PrintStopWord(char* elemAddr, void *auxData);
+
 /**
  * Function: main
  * --------------
@@ -100,21 +105,53 @@ static int ArticleFrequencyCompare(const void *elem1, const void *elem2);
  *         within the code base that end the program abnormally)
  */
 
-static const char *const kWelcomeTextFile = "http://cs107.stanford.edu/rss-news/welcome.txt";
-static const char *const kDefaultStopWordsFile = "http://cs107.stanford.edu/rss-news/stop-words.txt";
-static const char *const kDefaultFeedsFile = "http://cs107.stanford.edu/rss-news/rss-feeds.txt";
+static const char *const kWelcomeTextFile = "../assn-4-rss-news-search-data/welcome.txt";
+static const char *const kDefaultStopWordsFile = "../assn-4-rss-news-search-data/stop-words.txt";
+static const char *const kDefaultFeedsFile = "../assn-4-rss-news-search-data/rss-feeds-not9yo.txt";
 int main(int argc, char **argv)
 {
   const char *feedsFileName = (argc == 1) ? kDefaultFeedsFile : argv[1];
   rssDatabase db;
+  InitializeRssDatabase(&db);
   
   // InitThreadPackage(false);
   Welcome(kWelcomeTextFile);
   LoadStopWords(&db.stopWords, kDefaultStopWordsFile);
+  // HashSetMap(&(db.stopWords), PrintStopWord, NULL);
+  
   BuildIndices(&db, feedsFileName);
   QueryIndices(&db);
+  
+  DisposeRssDatabase(&db);
   return 0;
 }
+
+// utility functions
+
+static const int kNumStopWordsBuckets = 1009;
+static const int kNumIndexEntryBuckets = 10007;
+static void InitializeRssDatabase(rssDatabase* db)
+{
+  assert(db != NULL);
+  HashSetNew(&db->stopWords, sizeof(char *), kNumStopWordsBuckets, StringHash, StringCompare, StringFree);
+  HashSetNew(&db->indices, sizeof(rssIndexEntry), kNumIndexEntryBuckets, IndexEntryHash, IndexEntryCompare, IndexEntryFree);
+  VectorNew(&db->previouslySeenArticles, sizeof(rssNewsArticle), NewsArticleFree, 0);
+}
+
+static void DisposeRssDatabase(rssDatabase* db)
+{
+  HashSetDispose(&db->indices);
+  VectorDispose(&db->previouslySeenArticles); 
+  HashSetDispose(&db->stopWords);
+}
+
+static void PrintStopWord(char* elemAddr, void *auxData)
+{
+  assert(auxData == NULL);
+  printf("%s\n", * (char**) elemAddr);
+}
+
+// end utility functions
 
 /** 
  * Function: Welcome
@@ -136,27 +173,20 @@ int main(int argc, char **argv)
 static const char *const kNewLineDelimiters = "\r\n";
 static void Welcome(const char *welcomeTextURL)
 {
-  url u;
-  urlconnection urlconn;
+  FILE *fp;
+  fp = fopen(welcomeTextURL, "r");
+  assert(fp != NULL);
   
-  URLNewAbsolute(&u, welcomeTextURL);
-  URLConnectionNew(&urlconn, &u);
-  
-  if (urlconn.responseCode / 100 == 3) {
-    Welcome(urlconn.newUrl);
-  } else {
-    streamtokenizer st;
-    char buffer[4096];
-    STNew(&st, urlconn.dataStream, kNewLineDelimiters, true);
-    while (STNextToken(&st, buffer, sizeof(buffer))) {
-      printf("%s\n", buffer);
-    }  
-    printf("\n");
-    STDispose(&st); // remember that STDispose doesn't close the file, since STNew doesn't open one.. 
-  }
+  streamtokenizer st;
+  char buffer[4096];
+  STNew(&st, fp, kNewLineDelimiters, true); // discarding delimiters
+  while (STNextToken(&st, buffer, sizeof(buffer) ) ) {
+    printf("%s\n", buffer);
+  }  
+  printf("\n");
+  STDispose(&st);
 
-  URLConnectionDispose(&urlconn);
-  URLDispose(&u);
+  fclose(fp);
 }
 
 /**
@@ -180,31 +210,27 @@ static void Welcome(const char *welcomeTextURL)
  * No return value.
  */
 
-static const int kNumStopWordsBuckets = 1009;
 static void LoadStopWords(hashset *stopWords, const char *stopWordsURL)
 {
-  url u;
-  urlconnection urlconn;
+  FILE* fp;
+  fp = fopen(stopWordsURL, "r");
+  assert(fp != NULL);
   
-  URLNewAbsolute(&u, stopWordsURL);
-  URLConnectionNew(&urlconn, &u);
-  
-  if (urlconn.responseCode / 100 == 3) {
-    LoadStopWords(stopWords, urlconn.newUrl);
-  } else {
-    streamtokenizer st;
-    char buffer[4096];
-    HashSetNew(stopWords, sizeof(char *), kNumStopWordsBuckets, StringHash, StringCompare, StringFree);
-    STNew(&st, urlconn.dataStream, kNewLineDelimiters, true);
-    while (STNextToken(&st, buffer, sizeof(buffer))) {
-      char *stopWord = strdup(buffer);
-      HashSetEnter(stopWords, &stopWord);
-    }
-    STDispose(&st);
+  streamtokenizer st;
+  // we can be sure that no stop word will be longer than 128, because of that
+  // I don't even check if buffer containes finished word or not - 99.999% it will.
+  char buffer[128];
+  STNew(&st, fp, kNewLineDelimiters, true); // discarding delimiters
+  while (STNextToken(&st, buffer, sizeof(buffer) ) )
+  {
+    char* str = (char*) malloc(strlen(buffer) + 1);
+    assert(str != NULL);
+    memcpy(str, buffer, strlen(buffer) + 1);
+    HashSetEnter(stopWords, &str);
   }
-
-  URLConnectionDispose(&urlconn);
-  URLDispose(&u);
+   
+  STDispose(&st);
+  fclose(fp);
 }
 
 /**
@@ -229,34 +255,34 @@ static void LoadStopWords(hashset *stopWords, const char *stopWordsURL)
  * No return value.
  */
 
-static const int kNumIndexEntryBuckets = 10007;
 static void BuildIndices(rssDatabase *db, const char *feedsFileURL)
 {
-  url u;
-  urlconnection urlconn;
-  
-  URLNewAbsolute(&u, feedsFileURL);
-  URLConnectionNew(&urlconn, &u);
-  
-  if (urlconn.responseCode / 100 == 3) {
-    BuildIndices(db, urlconn.newUrl);
-  } else {
-    streamtokenizer st;
-    char remoteFileName[2048];
-    HashSetNew(&db->indices, sizeof(rssIndexEntry), kNumIndexEntryBuckets, IndexEntryHash, IndexEntryCompare, IndexEntryFree);
-    VectorNew(&db->previouslySeenArticles, sizeof(rssNewsArticle), NewsArticleFree, 0);
-    STNew(&st, urlconn.dataStream, kNewLineDelimiters, true);
-    while (STSkipUntil(&st, ":") != EOF) { // ignore everything up to the first selicolon of the line
-      STSkipOver(&st, ": ");		   // now ignore the semicolon and any whitespace directly after it
-      STNextToken(&st, remoteFileName, sizeof(remoteFileName));   
-      ProcessFeed(db, remoteFileName);
-    }
-    printf("\n");
-    STDispose(&st);
+  FILE *fp;
+  fp = fopen(feedsFileURL, "r");
+  if(fp == NULL) 
+  {
+    printf("Feeds file path is not good: %s\nTry again.\n", feedsFileURL);
+    exit(1);
   }
   
-  URLConnectionDispose(&urlconn);
-  URLDispose(&u);
+  streamtokenizer st;
+  char remoteDocumentURL[2048];
+    
+  STNew(&st, fp, kNewLineDelimiters, true);
+   // ignore everything up to the first selicolon of the line
+  while (STSkipUntil(&st, ":") != EOF) {
+    // now ignore the semicolon and any whitespace directly after it
+    STSkipOver(&st, ": ");
+    // Assuming 2048 chars can hold that url, if not: url owners problem
+    STNextToken(&st, remoteDocumentURL, sizeof(remoteDocumentURL));
+    printf("%s\n", remoteDocumentURL);
+    ProcessFeed(db, remoteDocumentURL);
+  }
+  
+  printf("\n");
+  STDispose(&st);
+  
+  fclose(fp);
 }
 
 /**
@@ -630,10 +656,7 @@ static void QueryIndices(rssDatabase *db)
     if (strcasecmp(response, "") == 0) break;
     ProcessResponse(db, response);
   }
-  
-  HashSetDispose(&db->indices);
-  VectorDispose(&db->previouslySeenArticles); 
-  HashSetDispose(&db->stopWords);
+
 }
 
 /** 
