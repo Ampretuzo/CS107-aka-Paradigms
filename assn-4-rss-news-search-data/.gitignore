@@ -5,4 +5,5 @@
 !rss-feeds-not9yo.txt
 # and itself
 !.gitignore
+!welcome.txt
 

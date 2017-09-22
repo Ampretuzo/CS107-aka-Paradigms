@@ -100,9 +100,9 @@ static int ArticleFrequencyCompare(const void *elem1, const void *elem2);
  *         within the code base that end the program abnormally)
  */
 
-static const char *const kWelcomeTextFile = "http://cs107.stanford.edu/rss-news/welcome.txt";
+static const char *const kWelcomeTextFile = "../assn-4-rss-news-search-data/welcome.txt";
 static const char *const kDefaultStopWordsFile = "http://cs107.stanford.edu/rss-news/stop-words.txt";
-static const char *const kDefaultFeedsFile = "http://cs107.stanford.edu/rss-news/rss-feeds.txt";
+static const char *const kDefaultFeedsFile = "../assn-4-rss-news-search-data/rss-feeds-not9yo.txt";
 int main(int argc, char **argv)
 {
   const char *feedsFileName = (argc == 1) ? kDefaultFeedsFile : argv[1];
@@ -110,9 +110,9 @@ int main(int argc, char **argv)
   
   // InitThreadPackage(false);
   Welcome(kWelcomeTextFile);
-  LoadStopWords(&db.stopWords, kDefaultStopWordsFile);
-  BuildIndices(&db, feedsFileName);
-  QueryIndices(&db);
+  // LoadStopWords(&db.stopWords, kDefaultStopWordsFile);
+  // BuildIndices(&db, feedsFileName);
+  // QueryIndices(&db);
   return 0;
 }
 
@@ -136,27 +136,20 @@ int main(int argc, char **argv)
 static const char *const kNewLineDelimiters = "\r\n";
 static void Welcome(const char *welcomeTextURL)
 {
-  url u;
-  urlconnection urlconn;
+  FILE *fp;
+  fp = fopen(welcomeTextURL, "r");
+  assert(fp != NULL);
   
-  URLNewAbsolute(&u, welcomeTextURL);
-  URLConnectionNew(&urlconn, &u);
-  
-  if (urlconn.responseCode / 100 == 3) {
-    Welcome(urlconn.newUrl);
-  } else {
-    streamtokenizer st;
-    char buffer[4096];
-    STNew(&st, urlconn.dataStream, kNewLineDelimiters, true);
-    while (STNextToken(&st, buffer, sizeof(buffer))) {
-      printf("%s\n", buffer);
-    }  
-    printf("\n");
-    STDispose(&st); // remember that STDispose doesn't close the file, since STNew doesn't open one.. 
-  }
+  streamtokenizer st;
+  char buffer[4096];
+  STNew(&st, fp, kNewLineDelimiters, true); // discarding delimiters
+  while (STNextToken(&st, buffer, sizeof(buffer) ) ) {
+    printf("%s\n", buffer);
+  }  
+  printf("\n");
+  STDispose(&st);
 
-  URLConnectionDispose(&urlconn);
-  URLDispose(&u);
+  fclose(fp);
 }
 
 /**
