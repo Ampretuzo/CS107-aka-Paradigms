@@ -8,5 +8,8 @@
 !Makefile
 !rss-news-search.c
 !README
+!concurr-conn-utils.h
+!concurr-conn-utils.c
+
 # will add new files whenever changed
 !recompile-and-run.sh
