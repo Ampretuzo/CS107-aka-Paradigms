@@ -9,6 +9,7 @@
 #include "url.h"
 #include "bool.h"
 #include "urlconnection.h"
+#include "limitedurlconnectionfactory.h"
 #include "streamtokenizer.h"
 #include "html-utils.h"
 #include "vector.h"
@@ -18,6 +19,10 @@
 // threads library not available
 // #include "thread_107.h"
 #include "concurr-conn-utils.h"
+
+#define MAX_TOT_CONNS 36
+#define MAX_SER_CONNS 8
+
 
 typedef struct {
   ts_hashset stopWords;
@@ -55,7 +60,7 @@ typedef struct {
 static void Welcome(const char *welcomeTextURL);
 static void LoadStopWords(ts_hashset *stopWords, const char *stopWordsURL);
 static void BuildIndices(rssDatabase *db, const char *feedsFileName);
-static void ProcessFeed(rssDatabase *db, const char *remoteDocumentName);
+static void ProcessFeed(rssDatabase *db, limitedUrlFactory* luf, const char *remoteDocumentName);
 static void PullAllNewsItems(rssDatabase *db, urlconnection *urlconn);
 
 static void ProcessStartTag(void *userData, const char *name, const char **atts);
@@ -268,6 +273,10 @@ static void BuildIndices(rssDatabase *db, const char *feedsFileURL)
   streamtokenizer st;
   char remoteDocumentURL[2048];
     
+  // Create connection factory
+  limitedUrlFactory luf;
+  LimitedURLConnectionFactoryNew(&luf, MAX_TOT_CONNS, MAX_SER_CONNS);
+    
   STNew(&st, fp, kNewLineDelimiters, true);
    // ignore everything up to the first selicolon of the line
   while (STSkipUntil(&st, ":") != EOF) {
@@ -276,11 +285,14 @@ static void BuildIndices(rssDatabase *db, const char *feedsFileURL)
     // Assuming 2048 chars can hold that url, if not: url owners problem
     STNextToken(&st, remoteDocumentURL, sizeof(remoteDocumentURL));
     printf("%s\n", remoteDocumentURL);
-    ProcessFeed(db, remoteDocumentURL);
+    ProcessFeed(db, &luf, remoteDocumentURL);
   }
   
   printf("\n");
   STDispose(&st);
+  
+  // Dispose of connection factory
+  LimitedURLConnectionFactoryDispose(&luf);
   
   fclose(fp);
 }
@@ -301,29 +313,40 @@ static void BuildIndices(rssDatabase *db, const char *feedsFileURL)
  * No return value.
  */
 
-static void ProcessFeed(rssDatabase *db, const char *remoteDocumentName)
+static void ProcessFeed(rssDatabase *db, limitedUrlFactory* luf, const char *remoteDocumentName)
 {
   url u;
   urlconnection urlconn;
   
   URLNewAbsolute(&u, remoteDocumentName);
-  URLConnectionNew(&urlconn, &u);
-  
+  LimitedURLConnectionNew(luf, &urlconn, &u);
+
+  char* redirectUrl = NULL;
+
   switch (urlconn.responseCode) {
       case 0: printf("Unable to connect to \"%s\".  Ignoring...", u.serverName);
 	      break;
       case 200: PullAllNewsItems(db, &urlconn);
                 break;
       case 301: 
-      case 302: ProcessFeed(db, urlconn.newUrl);
+      case 302: redirectUrl = strdup(urlconn.newUrl);
                 break;
       default: printf("Connection to \"%s\" was established, but unable to retrieve \"%s\". [response code: %d, response message:\"%s\"]\n",
 		      u.serverName, u.fileName, urlconn.responseCode, urlconn.responseMessage);
 	       break;
   };
   
-  URLConnectionDispose(&urlconn);
+  LimitedURLConnectionDispose(luf, &urlconn);
   URLDispose(&u);
+  
+  /*
+   * Force redirects to be sequential for now.
+   * Another solution would be to have some kind of barrier to limit number of recursive calls.
+   */
+  if (redirectUrl != NULL) {
+    ProcessFeed(db, luf, redirectUrl);
+    free(redirectUrl);
+  }
 }
 
 /**
