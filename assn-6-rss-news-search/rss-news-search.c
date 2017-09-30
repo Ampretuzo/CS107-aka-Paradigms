@@ -22,7 +22,7 @@
 typedef struct {
   ts_hashset stopWords;
   ts_hashset indices;
-  vector previouslySeenArticles;
+  ts_vector previouslySeenArticles;
 } rssDatabase;
 
 typedef struct {
@@ -44,7 +44,7 @@ typedef struct {
 
 typedef struct {
   const char *meaningfulWord;
-  vector relevantArticles;
+  ts_vector relevantArticles;
 } rssIndexEntry;
 
 typedef struct {
@@ -68,7 +68,7 @@ static bool WordIsWorthIndexing(const char *word, ts_hashset *stopWords);
 static void AddWordToIndices(ts_hashset *indices, const char *word, int articleIndex);
 static void QueryIndices(rssDatabase *db);
 static void ProcessResponse(rssDatabase *db, const char *word);
-static void ListTopArticles(rssIndexEntry *index, vector *previouslySeenArticles);
+static void ListTopArticles(rssIndexEntry *index, ts_vector *previouslySeenArticles);
 static bool WordIsWellFormed(const char *word);
 
 static void NewsArticleClone(rssNewsArticle *article, const char *title, 
@@ -135,13 +135,13 @@ static void InitializeRssDatabase(rssDatabase* db)
   assert(db != NULL);
   TSHashSetNew(&db->stopWords, sizeof(char *), kNumStopWordsBuckets, StringHash, StringCompare, StringFree);
   TSHashSetNew(&db->indices, sizeof(rssIndexEntry), kNumIndexEntryBuckets, IndexEntryHash, IndexEntryCompare, IndexEntryFree);
-  VectorNew(&db->previouslySeenArticles, sizeof(rssNewsArticle), NewsArticleFree, 0);
+  TSVectorNew(&db->previouslySeenArticles, sizeof(rssNewsArticle), NewsArticleFree, 0);
 }
 
 static void DisposeRssDatabase(rssDatabase* db)
 {
   TSHashSetDispose(&db->indices);
-  VectorDispose(&db->previouslySeenArticles); 
+  TSVectorDispose(&db->previouslySeenArticles); 
   TSHashSetDispose(&db->stopWords);
 }
 
@@ -512,7 +512,7 @@ static void ParseArticle(rssDatabase *db, const char *articleTitle, const char *
   
   URLNewAbsolute(&u, articleURL);
   rssNewsArticle newsArticle = { articleTitle, u.serverName, u.fullName };
-  if (VectorSearch(&db->previouslySeenArticles, &newsArticle, NewsArticleCompare, 0, false) >= 0) {
+  if (TSVectorSearch(&db->previouslySeenArticles, &newsArticle, NewsArticleCompare, 0, false) >= 0) {
     printf("[Ignoring \"%s\": we've seen it before.]\n", articleTitle);
     URLDispose(&u); 
     return; 
@@ -524,8 +524,8 @@ static void ParseArticle(rssDatabase *db, const char *articleTitle, const char *
               break;
       case 200: printf("[%s] Indexing \"%s\"\n", u.serverName, articleTitle);
 		NewsArticleClone(&newsArticle, articleTitle, u.serverName, u.fullName);
-		VectorAppend(&db->previouslySeenArticles, &newsArticle);
-		articleID = VectorLength(&db->previouslySeenArticles) - 1;
+		TSVectorAppend(&db->previouslySeenArticles, &newsArticle);
+		articleID = TSVectorLength(&db->previouslySeenArticles) - 1;
 	        STNew(&st, urlconn.dataStream, kTextDelimiters, false);
 		ScanArticle(&st, articleID, &db->indices, &db->stopWords);
 		STDispose(&st);
@@ -550,7 +550,7 @@ static void ParseArticle(rssDatabase *db, const char *articleTitle, const char *
  *
  * @param st the address of the streamtokenzer layering over the urlconnection to some online
  *           news article.
- * @param articleID the index of the relevant article within the vector of previously parsed articles.
+ * @param articleID the index of the relevant article within the ts_vector of previously parsed articles.
  * @param indices the set of indices to which all content in the article being parsed should be added.
  * @param stopWords the set of stop words.
  *
@@ -614,7 +614,7 @@ static void AddWordToIndices(ts_hashset *indices, const char *word, int articleI
   rssIndexEntry *existingIndexEntry = TSHashSetLookup(indices, &indexEntry);
   if (existingIndexEntry == NULL) {
     indexEntry.meaningfulWord = strdup(word);
-    VectorNew(&indexEntry.relevantArticles, sizeof(rssRelevantArticleEntry), NULL, 0);
+    TSVectorNew(&indexEntry.relevantArticles, sizeof(rssRelevantArticleEntry), NULL, 0);
     TSHashSetEnter(indices, &indexEntry);
     existingIndexEntry = TSHashSetLookup(indices, &indexEntry); // pretend like it's been there all along
     assert(existingIndexEntry != NULL);
@@ -622,14 +622,14 @@ static void AddWordToIndices(ts_hashset *indices, const char *word, int articleI
 
   rssRelevantArticleEntry articleEntry = { articleIndex, 0 };
   int existingArticleIndex =
-    VectorSearch(&existingIndexEntry->relevantArticles, &articleEntry, ArticleIndexCompare, 0, false);
+    TSVectorSearch(&existingIndexEntry->relevantArticles, &articleEntry, ArticleIndexCompare, 0, false);
   if (existingArticleIndex == -1) {
-    VectorAppend(&existingIndexEntry->relevantArticles, &articleEntry);
-    existingArticleIndex = VectorLength(&existingIndexEntry->relevantArticles) - 1;
+    TSVectorAppend(&existingIndexEntry->relevantArticles, &articleEntry);
+    existingArticleIndex = TSVectorLength(&existingIndexEntry->relevantArticles) - 1;
   }
   
   rssRelevantArticleEntry *existingArticleEntry = 
-    VectorNth(&existingIndexEntry->relevantArticles, existingArticleIndex);
+    TSVectorNth(&existingIndexEntry->relevantArticles, existingArticleIndex);
   existingArticleEntry->freq++;
 }
 
@@ -705,24 +705,24 @@ static void ProcessResponse(rssDatabase *db, const char *word)
  * No return value.
  */
 
-static void ListTopArticles(rssIndexEntry *matchingEntry, vector *previouslySeenArticles)
+static void ListTopArticles(rssIndexEntry *matchingEntry, ts_vector *previouslySeenArticles)
 {
   int i, numArticles, articleIndex, count;
   rssRelevantArticleEntry *relevantArticleEntry;
   rssNewsArticle *relevantArticle;
   
-  numArticles = VectorLength(&matchingEntry->relevantArticles);
+  numArticles = TSVectorLength(&matchingEntry->relevantArticles);
   printf("Nice! We found %d article%s that include%s the word \"%s\". ", 
 	 numArticles, (numArticles == 1) ? "" : "s", (numArticles != 1) ? "" : "s", matchingEntry->meaningfulWord);
   if (numArticles > 10) { printf("[We'll just list 10 of them, though.]"); numArticles = 10; }
   printf("\n\n");
   
-  VectorSort(&matchingEntry->relevantArticles, ArticleFrequencyCompare);
+  TSVectorSort(&matchingEntry->relevantArticles, ArticleFrequencyCompare);
   for (i = 0; i < numArticles; i++) {
-    relevantArticleEntry = VectorNth(&matchingEntry->relevantArticles, i);
+    relevantArticleEntry = TSVectorNth(&matchingEntry->relevantArticles, i);
     articleIndex = relevantArticleEntry->articleIndex;
     count = relevantArticleEntry->freq;
-    relevantArticle = VectorNth(previouslySeenArticles, articleIndex);
+    relevantArticle = TSVectorNth(previouslySeenArticles, articleIndex);
     printf("\t%2d.) \"%s\" [search term occurs %d time%s]\n", i + 1, 
 	   relevantArticle->title, count, (count == 1) ? "" : "s");
     printf("\t%2s   \"%s\"\n", "", relevantArticle->fullURL);
@@ -883,7 +883,7 @@ static void IndexEntryFree(void *elem)
 {
   rssIndexEntry *entry = elem;
   StringFree(&entry->meaningfulWord);
-  VectorDispose(&entry->relevantArticles);
+  TSVectorDispose(&entry->relevantArticles);
 }
 
 static int ArticleIndexCompare(const void *elem1, const void *elem2)
