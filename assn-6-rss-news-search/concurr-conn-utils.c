@@ -37,13 +37,7 @@ void ConcurrConnUtilsNew(concurrConnUtil* ccu, int maxTotalConns, int maxServerC
   sem_init(&ccu->totConnSem, 0, maxTotalConns);
   // 2
   ccu->maxServerConns = maxServerConns;
-  // 3
-  pthread_mutexattr_t reentrantAttr;
-  pthread_mutexattr_init(&reentrantAttr);
-  pthread_mutexattr_settype(&reentrantAttr, PTHREAD_MUTEX_RECURSIVE);
-  pthread_mutex_init(&ccu->serverConnSemsLock, &reentrantAttr);
-  // 4
-  HashSetNew(
+  TSHashSetNew(
     &ccu->serverConnSems, 
     sizeof(serverConnSem), 
     kNumServerConnSemsBuckets, 
@@ -55,12 +49,8 @@ void ConcurrConnUtilsNew(concurrConnUtil* ccu, int maxTotalConns, int maxServerC
 
 void ConcurrConnUtilsDispose(concurrConnUtil* ccu) {
   assert(ccu != NULL);
-  // 3
-  assert(pthread_mutex_trylock(&ccu->serverConnSemsLock) == 0);
-  pthread_mutex_unlock(&ccu->serverConnSemsLock);
-  pthread_mutex_destroy(&ccu->serverConnSemsLock);
   // 4
-  HashSetDispose(&ccu->serverConnSems);
+  TSHashSetDispose(&ccu->serverConnSems);
   // 2
   ccu->maxServerConns = 0;
   // 1
@@ -78,15 +68,14 @@ void ConcurrConnUtilsWait(concurrConnUtil* ccu, const char* serverName) {
   sem_wait(&ccu->totConnSem);
   // Now find entry for server connection
   serverConnSem scsToFind = {serverName};
-  // TODO: serverConnSems needs protection
-  serverConnSem* scs = HashSetLookup(&ccu->serverConnSems, &scsToFind);
+  serverConnSem* scs = TSHashSetLookup(&ccu->serverConnSems, &scsToFind);
   if (scs == NULL) {
     // Create and add a new serverConnSem
     serverConnSem scsToCreate;
     scsToCreate.serverName = strdup(serverName);
     sem_init(&scsToCreate.serverSemaphore, 0, ccu->maxServerConns);
-    HashSetEnter(&ccu->serverConnSems, &scsToCreate);
-    scs = HashSetLookup(&ccu->serverConnSems, &scsToFind);
+    TSHashSetEnter(&ccu->serverConnSems, &scsToCreate);
+    scs = TSHashSetLookup(&ccu->serverConnSems, &scsToFind);
     assert(scs != NULL);
   }
   sem_wait(&scs->serverSemaphore);
@@ -98,7 +87,7 @@ void ConcurrConnUtilsPost(concurrConnUtil* ccu, const char* serverName) {
     printf("%s\n", "\t\t!@#!@#: not a valid semaphore.");
   }
   serverConnSem scsToFind = {serverName};
-  serverConnSem* scs = HashSetLookup(&ccu->serverConnSems, &scsToFind);
+  serverConnSem* scs = TSHashSetLookup(&ccu->serverConnSems, &scsToFind);
   assert(scs != NULL);
   if (sem_post(&scs->serverSemaphore) == -1 && errno == EINVAL) {
     printf("%s\n", "\t\t!@#!@#: not a valid semaphore.");

@@ -5,13 +5,12 @@
 #include <pthread.h>
 #include <errno.h>
 
-#include "hashset.h"
+#include "tshashset.h"
 
 typedef struct {
   sem_t totConnSem;
   int maxServerConns;
-  pthread_mutex_t serverConnSemsLock;
-  hashset serverConnSems;
+  ts_hashset serverConnSems;
 } concurrConnUtil;
 
 int StringHash(const void *elem, int numBuckets);

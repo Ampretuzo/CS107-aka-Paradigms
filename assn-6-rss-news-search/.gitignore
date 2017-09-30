@@ -10,6 +10,8 @@
 !README
 !concurr-conn-utils.h
 !concurr-conn-utils.c
+!tshashset.c
+!tshashset.h
 
 # will add new files whenever changed
 !recompile-and-run.sh
