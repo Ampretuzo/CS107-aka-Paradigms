@@ -12,6 +12,7 @@
 #include "streamtokenizer.h"
 #include "html-utils.h"
 #include "vector.h"
+#include "tsvector.h"
 // #include "hashset.h"
 #include "tshashset.h"
 // threads library not available
