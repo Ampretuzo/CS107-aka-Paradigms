@@ -28,7 +28,7 @@ void TSHashSetDispose(ts_hashset *h) {
 
 // TODO: no error checking done on mutex lock
 
-int TSHashSetCount(const ts_hashset *h) {
+int TSHashSetCount(ts_hashset *h) {
   assert(h != NULL);
   int ret;
   pthread_mutex_lock(&h->lock);

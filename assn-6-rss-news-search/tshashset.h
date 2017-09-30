@@ -15,7 +15,7 @@ void TSHashSetNew(ts_hashset *h, int elemSize, int numBuckets,
 
 void TSHashSetDispose(ts_hashset *h);
 
-int TSHashSetCount(const ts_hashset *h);
+int TSHashSetCount(ts_hashset *h);
 
 void TSHashSetEnter(ts_hashset *h, const void *elemAddr);
 

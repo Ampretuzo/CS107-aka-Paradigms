@@ -12,14 +12,15 @@
 #include "streamtokenizer.h"
 #include "html-utils.h"
 #include "vector.h"
-#include "hashset.h"
+// #include "hashset.h"
+#include "tshashset.h"
 // threads library not available
 // #include "thread_107.h"
 #include "concurr-conn-utils.h"
 
 typedef struct {
-  hashset stopWords;
-  hashset indices;
+  ts_hashset stopWords;
+  ts_hashset indices;
   vector previouslySeenArticles;
 } rssDatabase;
 
@@ -51,7 +52,7 @@ typedef struct {
 } rssRelevantArticleEntry;
 
 static void Welcome(const char *welcomeTextURL);
-static void LoadStopWords(hashset *stopWords, const char *stopWordsURL);
+static void LoadStopWords(ts_hashset *stopWords, const char *stopWordsURL);
 static void BuildIndices(rssDatabase *db, const char *feedsFileName);
 static void ProcessFeed(rssDatabase *db, const char *remoteDocumentName);
 static void PullAllNewsItems(rssDatabase *db, urlconnection *urlconn);
@@ -61,9 +62,9 @@ static void ProcessEndTag(void *userData, const char *name);
 static void ProcessTextData(void *userData, const char *text, int len);
 
 static void ParseArticle(rssDatabase *db, const char *articleTitle, const char *articleURL);
-static void ScanArticle(streamtokenizer *st, int articleID, hashset *indices, hashset *stopWords);
-static bool WordIsWorthIndexing(const char *word, hashset *stopWords);
-static void AddWordToIndices(hashset *indices, const char *word, int articleIndex);
+static void ScanArticle(streamtokenizer *st, int articleID, ts_hashset *indices, ts_hashset *stopWords);
+static bool WordIsWorthIndexing(const char *word, ts_hashset *stopWords);
+static void AddWordToIndices(ts_hashset *indices, const char *word, int articleIndex);
 static void QueryIndices(rssDatabase *db);
 static void ProcessResponse(rssDatabase *db, const char *word);
 static void ListTopArticles(rssIndexEntry *index, vector *previouslySeenArticles);
@@ -107,14 +108,6 @@ static const char *const kDefaultStopWordsFile = "../assn-4-rss-news-search-data
 static const char *const kDefaultFeedsFile = "../assn-4-rss-news-search-data/rss-feeds-not9yo.txt";
 int main(int argc, char **argv)
 {
-  concurrConnUtil ccu;
-  ConcurrConnUtilsNew(&ccu, 5, 1);
-  ConcurrConnUtilsWait(&ccu, "server1");
-  ConcurrConnUtilsWait(&ccu, "server2");
-  printf("%s\n", "got second");
-  ConcurrConnUtilsWait(&ccu, "server1");
-  printf("%s\n", "got first");
-  /*
   const char *feedsFileName = (argc == 1) ? kDefaultFeedsFile : argv[1];
   rssDatabase db;
   InitializeRssDatabase(&db);
@@ -122,13 +115,13 @@ int main(int argc, char **argv)
   // InitThreadPackage(false);
   Welcome(kWelcomeTextFile);
   LoadStopWords(&db.stopWords, kDefaultStopWordsFile);
-  // HashSetMap(&(db.stopWords), PrintStopWord, NULL);
+  // TSHashSetMap(&(db.stopWords), PrintStopWord, NULL);
   
   BuildIndices(&db, feedsFileName);
   QueryIndices(&db);
   
   DisposeRssDatabase(&db);
-  */
+  
   return 0;
 }
 
@@ -139,16 +132,16 @@ static const int kNumIndexEntryBuckets = 10007;
 static void InitializeRssDatabase(rssDatabase* db)
 {
   assert(db != NULL);
-  HashSetNew(&db->stopWords, sizeof(char *), kNumStopWordsBuckets, StringHash, StringCompare, StringFree);
-  HashSetNew(&db->indices, sizeof(rssIndexEntry), kNumIndexEntryBuckets, IndexEntryHash, IndexEntryCompare, IndexEntryFree);
+  TSHashSetNew(&db->stopWords, sizeof(char *), kNumStopWordsBuckets, StringHash, StringCompare, StringFree);
+  TSHashSetNew(&db->indices, sizeof(rssIndexEntry), kNumIndexEntryBuckets, IndexEntryHash, IndexEntryCompare, IndexEntryFree);
   VectorNew(&db->previouslySeenArticles, sizeof(rssNewsArticle), NewsArticleFree, 0);
 }
 
 static void DisposeRssDatabase(rssDatabase* db)
 {
-  HashSetDispose(&db->indices);
+  TSHashSetDispose(&db->indices);
   VectorDispose(&db->previouslySeenArticles); 
-  HashSetDispose(&db->stopWords);
+  TSHashSetDispose(&db->stopWords);
 }
 
 static void PrintStopWord(char* elemAddr, void *auxData)
@@ -198,7 +191,7 @@ static void Welcome(const char *welcomeTextURL)
 /**
  * Function: LoadStopWords
  * -----------------------
- * Initializes the raw hashset addressed by stopWords to
+ * Initializes the raw ts_hashset addressed by stopWords to
  * store dynamically allocated C strings.
  * 
  * The stop words themselves are stored in the file named
@@ -207,7 +200,7 @@ static void Welcome(const char *welcomeTextURL)
  * stop word on its own line without any whitespace other
  * than the delimiting newline characters.
  *
- * @param stopWords the (raw and uninitialized) hashset to be initialized
+ * @param stopWords the (raw and uninitialized) ts_hashset to be initialized
  *                  and populated with a list of stop words.
  * @param stopWordsURL the path to the flat text file, where stop words
  *                     are listed one per line without any additional
@@ -216,7 +209,7 @@ static void Welcome(const char *welcomeTextURL)
  * No return value.
  */
 
-static void LoadStopWords(hashset *stopWords, const char *stopWordsURL)
+static void LoadStopWords(ts_hashset *stopWords, const char *stopWordsURL)
 {
   FILE* fp;
   fp = fopen(stopWordsURL, "r");
@@ -232,7 +225,7 @@ static void LoadStopWords(hashset *stopWords, const char *stopWordsURL)
     char* str = (char*) malloc(strlen(buffer) + 1);
     assert(str != NULL);
     memcpy(str, buffer, strlen(buffer) + 1);
-    HashSetEnter(stopWords, &str);
+    TSHashSetEnter(stopWords, &str);
   }
    
   STDispose(&st);
@@ -244,7 +237,7 @@ static void LoadStopWords(hashset *stopWords, const char *stopWordsURL)
  * ----------------------
  * As far as the user is concerned, BuildIndices needs to read each and every
  * one of the feeds listed in the specied feedsFileName, and for each feed parse
- * content of all referenced articles and store the content in the hashset of indices.
+ * content of all referenced articles and store the content in the ts_hashset of indices.
  * Each line of the specified feeds file looks like this:
  *
  *   <feed name>: <URL of remote xml document>
@@ -563,7 +556,7 @@ static void ParseArticle(rssDatabase *db, const char *articleTitle, const char *
  * No return value.
  */
 
-static void ScanArticle(streamtokenizer *st, int articleID, hashset *indices, hashset *stopWords)
+static void ScanArticle(streamtokenizer *st, int articleID, ts_hashset *indices, ts_hashset *stopWords)
 {
   char word[1024];
 
@@ -586,7 +579,7 @@ static void ScanArticle(streamtokenizer *st, int articleID, hashset *indices, ha
  * the set of indices.  At the moment, we only allow
  * words that:
  *
- *   - are not stop words (all of which are held by the hashset 
+ *   - are not stop words (all of which are held by the ts_hashset 
  *     addressed by stopWords)
  *   - contain just alphabetic characters and the hyphen character.
  *   - start with a letter of the alphabet
@@ -597,9 +590,9 @@ static void ScanArticle(streamtokenizer *st, int articleID, hashset *indices, ha
  *         word set.
  */
 
-static bool WordIsWorthIndexing(const char *word, hashset *stopWords)
+static bool WordIsWorthIndexing(const char *word, ts_hashset *stopWords)
 {
-  return WordIsWellFormed(word) && HashSetLookup(stopWords, &word) == NULL;
+  return WordIsWellFormed(word) && TSHashSetLookup(stopWords, &word) == NULL;
 }
 
 /**
@@ -614,15 +607,15 @@ static bool WordIsWorthIndexing(const char *word, hashset *stopWords)
  * No return value.
  */
 
-static void AddWordToIndices(hashset *indices, const char *word, int articleIndex)
+static void AddWordToIndices(ts_hashset *indices, const char *word, int articleIndex)
 {
   rssIndexEntry indexEntry = { word }; // partial intialization
-  rssIndexEntry *existingIndexEntry = HashSetLookup(indices, &indexEntry);
+  rssIndexEntry *existingIndexEntry = TSHashSetLookup(indices, &indexEntry);
   if (existingIndexEntry == NULL) {
     indexEntry.meaningfulWord = strdup(word);
     VectorNew(&indexEntry.relevantArticles, sizeof(rssRelevantArticleEntry), NULL, 0);
-    HashSetEnter(indices, &indexEntry);
-    existingIndexEntry = HashSetLookup(indices, &indexEntry); // pretend like it's been there all along
+    TSHashSetEnter(indices, &indexEntry);
+    existingIndexEntry = TSHashSetLookup(indices, &indexEntry); // pretend like it's been there all along
     assert(existingIndexEntry != NULL);
   }
 
@@ -685,13 +678,13 @@ static void ProcessResponse(rssDatabase *db, const char *word)
     return;
   } 
   
-  if (HashSetLookup(&db->stopWords, &word) != NULL) {
+  if (TSHashSetLookup(&db->stopWords, &word) != NULL) {
     printf("\"%s\" is too common a word to be taken seriously.  Please be more specific.\n\n", word);
     return;
   }
 
   rssIndexEntry entry = { word };
-  rssIndexEntry *existingIndex = HashSetLookup(&db->indices, &entry);
+  rssIndexEntry *existingIndex = TSHashSetLookup(&db->indices, &entry);
   if (existingIndex == NULL) {
     printf("None of today's news articles contain the word \"%s\".\n\n", word);
     return;
@@ -845,7 +838,7 @@ static void NewsArticleFree(void *elem)
  * one centralized function owns the string hashing functionality.
  *
  * @param elem the address of the rssIndexEntry being hashed.
- * @param numBuckets the number of buckets making up the hashset that's
+ * @param numBuckets the number of buckets making up the ts_hashset that's
  *                   doing the hashing.
  * @return the hash code of the rssIndexEntry.
  */
