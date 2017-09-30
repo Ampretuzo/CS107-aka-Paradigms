@@ -28,7 +28,7 @@ CFLAGS = -D_REENTRANT -g -Wall -D__ostype_is_$(OSTYPE)__ -std=gnu99 -Wno-unused-
 LDFLAGS = -L/home/aro/dev/workspace/learn/CS107-aka-Paradigms/assn-6-rss-news-search-lib/$(OSTYPE) -lexpat -lrssnews $(PLATFORM_LIBS) $(THREAD_LIBS)
 PFLAGS= -linker=/usr/pubsw/bin/ld -best-effort -threads=yes -max-threads=1000
 
-SRCS = rss-news-search.c
+SRCS = rss-news-search.c concurr-conn-utils.c tshashset.c tsvector.c limitedurlconnectionfactory.c
 OBJS = $(SRCS:.c=.o)
 TARGET = rss-news-search
 TARGET-PURE = rss-news-search.purify.bin

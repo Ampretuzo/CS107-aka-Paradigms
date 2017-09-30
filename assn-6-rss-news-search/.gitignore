@@ -8,5 +8,14 @@
 !Makefile
 !rss-news-search.c
 !README
+!concurr-conn-utils.h
+!concurr-conn-utils.c
+!tshashset.c
+!tshashset.h
+!tsvector.c
+!tsvector.h
+!limitedurlconnectionfactory.h
+!limitedurlconnectionfactory.c
+
 # will add new files whenever changed
 !recompile-and-run.sh
