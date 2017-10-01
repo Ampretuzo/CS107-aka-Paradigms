@@ -1,0 +1,23 @@
+# Ignore given files which dont need to be edited.
+# Found @: https://see.stanford.edu/Course/CS107
+*
+
+# Edited files:
+!.gitignore
+# kinda works
+!Makefile
+!rss-news-search.c
+!README
+!concurr-conn-utils.h
+!concurr-conn-utils.c
+!tshashset.c
+!tshashset.h
+!tsvector.c
+!tsvector.h
+!limitedurlconnectionfactory.h
+!limitedurlconnectionfactory.c
+!threadutils.h
+!threadutils.c
+
+# will add new files whenever changed
+!recompile-and-run.sh
