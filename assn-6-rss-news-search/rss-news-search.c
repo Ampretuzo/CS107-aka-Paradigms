@@ -38,6 +38,8 @@ typedef struct {
 
 typedef struct {
   rssDatabase *db;
+  limitedUrlFactory* luf;
+  threads* ths;
   rssFeedEntry entry;
 } rssFeedState;
 
@@ -60,8 +62,15 @@ typedef struct {
 typedef struct {
   rssDatabase* db;
   limitedUrlFactory* luf;
-  const char* remoteDocumentName;
+  char* remoteDocumentName;
 } processFeedWrapperArg;
+
+typedef struct {
+  rssDatabase* db;
+  limitedUrlFactory* luf;
+  char* articleTitle; 
+  char* articleURL;
+} parseArticleWrapperArg;
 
 static void Welcome(const char *welcomeTextURL);
 static void LoadStopWords(ts_hashset *stopWords, const char *stopWordsURL);
@@ -69,13 +78,15 @@ static void BuildIndices(rssDatabase *db, const char *feedsFileName);
 static void ProcessFeed(rssDatabase *db, limitedUrlFactory* luf, const char *remoteDocumentName);
 static void* ProcessFeedWrapper(void* fnArg);
 static void ProcessFeedWrapperArgDispose(void* fnArg);
-static void PullAllNewsItems(rssDatabase *db, urlconnection *urlconn);
+static void PullAllNewsItems(rssDatabase *db, limitedUrlFactory* luf, urlconnection *urlconn);
 
 static void ProcessStartTag(void *userData, const char *name, const char **atts);
 static void ProcessEndTag(void *userData, const char *name);
 static void ProcessTextData(void *userData, const char *text, int len);
 
-static void ParseArticle(rssDatabase *db, const char *articleTitle, const char *articleURL);
+static void ParseArticle(rssDatabase *db, limitedUrlFactory* luf, const char *articleTitle, const char *articleURL);
+static void* ParseArticleWrapper(void* fnArg);
+static void ParseArticleWrapperArgDispose(void* fnArg);
 static void ScanArticle(streamtokenizer *st, int articleID, ts_hashset *indices, ts_hashset *stopWords);
 static bool WordIsWorthIndexing(const char *word, ts_hashset *stopWords);
 static void AddWordToIndices(ts_hashset *indices, const char *word, int articleIndex);
@@ -132,7 +143,7 @@ int main(int argc, char **argv)
   // TSHashSetMap(&(db.stopWords), PrintStopWord, NULL);
   
   BuildIndices(&db, feedsFileName);
-  // QueryIndices(&db);
+  QueryIndices(&db);
   
   DisposeRssDatabase(&db);
   return 0;
@@ -355,7 +366,7 @@ static void ProcessFeed(rssDatabase *db, limitedUrlFactory* luf, const char *rem
   switch (urlconn.responseCode) {
       case 0: printf("Unable to connect to \"%s\".  Ignoring...", u.serverName);
 	      break;
-      case 200: PullAllNewsItems(db, &urlconn);
+      case 200: PullAllNewsItems(db, luf, &urlconn);
                 break;
       case 301: 
       case 302: redirectUrl = strdup(urlconn.newUrl);
@@ -408,11 +419,15 @@ static void ProcessFeed(rssDatabase *db, limitedUrlFactory* luf, const char *rem
  *                connection to the class.
  */
 
-static void PullAllNewsItems(rssDatabase *db, urlconnection *urlconn)
+static void PullAllNewsItems(rssDatabase *db, limitedUrlFactory* luf, urlconnection *urlconn)
 {
-  rssFeedState state = {db}; // passed through the parser by address as auxiliary data.
+  rssFeedState state = {db, luf}; // passed through the parser by address as auxiliary data.
   streamtokenizer st;
   char buffer[2048];
+  
+  threads ths;
+  ThreadUtilsNew(&ths, ParseArticleWrapper, ParseArticleWrapperArgDispose);
+  state.ths = &ths;
 
   XML_Parser rssFeedParser = XML_ParserCreate(NULL);
   XML_SetUserData(rssFeedParser, &state);
@@ -427,6 +442,9 @@ static void PullAllNewsItems(rssDatabase *db, urlconnection *urlconn)
   
   XML_Parse(rssFeedParser, "", 0, true); // instructs the xml parser that we're done parsing..
   XML_ParserFree(rssFeedParser);  
+  
+  ThreadUtilsJoin(&ths);
+  ThreadUtilsDispose(&ths);
 }
 
 /**
@@ -489,8 +507,13 @@ static void ProcessEndTag(void *userData, const char *name)
   rssFeedState *state = userData;
   rssFeedEntry *entry = &state->entry;
   entry->activeField = NULL;
-  if (strcasecmp(name, "item") == 0) 
-    ParseArticle(state->db, entry->title, entry->url);
+  if (strcasecmp(name, "item") == 0) {
+    parseArticleWrapperArg argTemp = {state->db, state->luf, strdup(entry->title), strdup(entry->url) };
+    parseArticleWrapperArg* arg = malloc(sizeof(parseArticleWrapperArg) );
+    memcpy(arg, &argTemp, sizeof(parseArticleWrapperArg) );
+    ThreadUtilsStartThread(state->ths, arg);
+    // ParseArticle(state->db, entry->title, entry->url);
+  } 
 }
 
 /**
@@ -525,6 +548,17 @@ static void ProcessTextData(void *userData, const char *text, int len)
   strncat(entry->activeField, buffer, 2048);
 }
 
+/**
+ * Wraps around ProcessFeed to make it possible to start it as a new thread.
+ *
+ */
+ 
+static void* ParseArticleWrapper(void* fnArg) {
+  parseArticleWrapperArg* arg = (parseArticleWrapperArg*) fnArg;
+  ParseArticle(arg->db, arg->luf, arg->articleTitle, arg->articleURL);
+  return NULL;
+}
+
 /** 
  * Function: ParseArticle
  * ----------------------
@@ -555,7 +589,7 @@ static void ProcessTextData(void *userData, const char *text, int len)
  */
 
 static const char *const kTextDelimiters = " \t\n\r\b!@$%^*()_+={[}]|\\'\":;/?.>,<~`";
-static void ParseArticle(rssDatabase *db, const char *articleTitle, const char *articleURL)
+static void ParseArticle(rssDatabase *db, limitedUrlFactory* luf, const char *articleTitle, const char *articleURL)
 {
   url u;
   urlconnection urlconn;
@@ -570,7 +604,8 @@ static void ParseArticle(rssDatabase *db, const char *articleTitle, const char *
     return; 
   }
   
-  URLConnectionNew(&urlconn, &u);
+  // URLConnectionNew(&urlconn, &u);
+  LimitedURLConnectionNew(luf, &urlconn, &u);
   
   char* redirectUrl = NULL;
   
@@ -593,11 +628,12 @@ static void ParseArticle(rssDatabase *db, const char *articleTitle, const char *
 	       break;
   }
   
-  URLConnectionDispose(&urlconn);
+  // URLConnectionDispose(&urlconn);
+  LimitedURLConnectionDispose(luf, &urlconn);
   URLDispose(&u);
   
   if (redirectUrl != NULL) {
-    ParseArticle(db, articleTitle, redirectUrl);
+    ParseArticle(db, luf, articleTitle, redirectUrl);
     free(redirectUrl);
   }
 }
@@ -830,10 +866,20 @@ static bool WordIsWellFormed(const char *word)
 
 // below utils -----------------------------------------------------------------
 
+// NOTE: instead of "Dispose" in these names "Free" should be used because
+// they deallocate whole structure not just inside-things
+
 static void ProcessFeedWrapperArgDispose(void* fnArg) {
   processFeedWrapperArg* arg = (processFeedWrapperArg*) fnArg;
   // Only remoteDocumentName string is this methods reponsibility
   free(arg->remoteDocumentName);
+  free(arg);
+}
+
+static void ParseArticleWrapperArgDispose(void* fnArg) {
+  parseArticleWrapperArg* arg = (parseArticleWrapperArg*) fnArg;
+  free(arg->articleTitle);
+  free(arg->articleURL);
   free(arg);
 }
 
