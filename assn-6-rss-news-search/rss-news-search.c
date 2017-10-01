@@ -571,6 +571,9 @@ static void ParseArticle(rssDatabase *db, const char *articleTitle, const char *
   }
   
   URLConnectionNew(&urlconn, &u);
+  
+  char* redirectUrl = NULL;
+  
   switch (urlconn.responseCode) {
       case 0: printf("Unable to connect to \"%s\".  Domain name or IP address is nonexistent.\n", articleURL);
               break;
@@ -583,8 +586,8 @@ static void ParseArticle(rssDatabase *db, const char *articleTitle, const char *
 		STDispose(&st);
 		break;
       case 301: 
-      case 302: // just pretend we have the redirected URL all along, though index using the new URL and not the old one...
-	        ParseArticle(db, articleTitle, urlconn.newUrl);
+      case 302:
+	        redirectUrl = strdup(urlconn.newUrl);
 		break;
       default: printf("Unable to pull \"%s\" from \"%s\". [Response code: %d] Punting...\n", articleTitle, u.serverName, urlconn.responseCode);
 	       break;
@@ -592,6 +595,11 @@ static void ParseArticle(rssDatabase *db, const char *articleTitle, const char *
   
   URLConnectionDispose(&urlconn);
   URLDispose(&u);
+  
+  if (redirectUrl != NULL) {
+    ParseArticle(db, articleTitle, redirectUrl);
+    free(redirectUrl);
+  }
 }
 
 /**
