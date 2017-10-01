@@ -57,10 +57,18 @@ typedef struct {
   int freq;
 } rssRelevantArticleEntry;
 
+typedef struct {
+  rssDatabase* db;
+  limitedUrlFactory* luf;
+  const char* remoteDocumentName;
+} processFeedWrapperArg;
+
 static void Welcome(const char *welcomeTextURL);
 static void LoadStopWords(ts_hashset *stopWords, const char *stopWordsURL);
 static void BuildIndices(rssDatabase *db, const char *feedsFileName);
 static void ProcessFeed(rssDatabase *db, limitedUrlFactory* luf, const char *remoteDocumentName);
+static void* ProcessFeedWrapper(void* fnArg);
+static void ProcessFeedWrapperArgDispose(void* fnArg);
 static void PullAllNewsItems(rssDatabase *db, urlconnection *urlconn);
 
 static void ProcessStartTag(void *userData, const char *name, const char **atts);
@@ -124,7 +132,7 @@ int main(int argc, char **argv)
   // TSHashSetMap(&(db.stopWords), PrintStopWord, NULL);
   
   BuildIndices(&db, feedsFileName);
-  QueryIndices(&db);
+  // QueryIndices(&db);
   
   DisposeRssDatabase(&db);
   return 0;
@@ -274,6 +282,8 @@ static void BuildIndices(rssDatabase *db, const char *feedsFileURL)
     
   // Create connection factory
   limitedUrlFactory luf;
+  threads ths;
+  ThreadUtilsNew(&ths, ProcessFeedWrapper, ProcessFeedWrapperArgDispose);
   LimitedURLConnectionFactoryNew(&luf, MAX_TOT_CONNS, MAX_SER_CONNS);
     
   STNew(&st, fp, kNewLineDelimiters, true);
@@ -284,16 +294,36 @@ static void BuildIndices(rssDatabase *db, const char *feedsFileURL)
     // Assuming 2048 chars can hold that url, if not: url owners problem
     STNextToken(&st, remoteDocumentURL, sizeof(remoteDocumentURL));
     printf("%s\n", remoteDocumentURL);
-    ProcessFeed(db, &luf, remoteDocumentURL);
+    processFeedWrapperArg threadArgTemp = {db, &luf, strndup(remoteDocumentURL, 2048) };
+    processFeedWrapperArg* threadArg = malloc(sizeof(processFeedWrapperArg) );
+    memcpy(threadArg, &threadArgTemp, sizeof(processFeedWrapperArg) );
+    // ProcessFeed(db, &luf, remoteDocumentURLArg);
+    ThreadUtilsStartThread(&ths, threadArg);
   }
   
   printf("\n");
   STDispose(&st);
   
+  // Join the threads before luf is disposed
+  ThreadUtilsJoin(&ths);
+  
   // Dispose of connection factory
   LimitedURLConnectionFactoryDispose(&luf);
+  ThreadUtilsDispose(&ths);
   
   fclose(fp);
+}
+
+/**
+ * Wraps around ProcessFeed to make it possible to start it as a new thread.
+ *
+ */
+ 
+static void* ProcessFeedWrapper(void* fnArg) {
+  assert(fnArg != NULL);
+  processFeedWrapperArg* arg = (processFeedWrapperArg*) fnArg;
+  ProcessFeed(arg->db, arg->luf, arg->remoteDocumentName);
+  return NULL;
 }
 
 /**
@@ -776,6 +806,27 @@ static bool WordIsWellFormed(const char *word)
     if (!isalnum((int) word[i]) && (word[i] != '-')) return false; 
 
   return true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+// below utils -----------------------------------------------------------------
+
+static void ProcessFeedWrapperArgDispose(void* fnArg) {
+  processFeedWrapperArg* arg = (processFeedWrapperArg*) fnArg;
+  // Only remoteDocumentName string is this methods reponsibility
+  free(arg->remoteDocumentName);
+  free(arg);
 }
 
 /**
