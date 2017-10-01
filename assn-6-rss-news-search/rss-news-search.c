@@ -18,7 +18,7 @@
 #include "tshashset.h"
 // threads library not available
 // #include "thread_107.h"
-#include "concurr-conn-utils.h"
+#include "threadutils.h"
 
 #define MAX_TOT_CONNS 36
 #define MAX_SER_CONNS 8
@@ -127,7 +127,6 @@ int main(int argc, char **argv)
   QueryIndices(&db);
   
   DisposeRssDatabase(&db);
-  
   return 0;
 }
 

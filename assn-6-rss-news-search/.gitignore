@@ -16,6 +16,8 @@
 !tsvector.h
 !limitedurlconnectionfactory.h
 !limitedurlconnectionfactory.c
+!threadutils.h
+!threadutils.c
 
 # will add new files whenever changed
 !recompile-and-run.sh
