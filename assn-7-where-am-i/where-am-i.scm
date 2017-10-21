@@ -246,3 +246,18 @@
 (define (sort-points ratings) 
 	(quicksort ratings (lambda (el1 el2) (< (car el1) (car el2)) ) )
 )
+
+;; 5
+
+(define (clumped-points pts) 
+	(let ((clumped 
+		(map (lambda (sorted-el) 
+			(car (cdr sorted-el))
+		) (sort-points (rate-points pts)) )
+		))
+		(prefix-of-list 
+			clumped 
+			(quotient (length clumped) 2)
+		)
+	)
+)
