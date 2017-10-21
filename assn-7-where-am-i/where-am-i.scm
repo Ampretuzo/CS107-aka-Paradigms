@@ -230,3 +230,12 @@
 		(dist pt other-pt)
 	) (remove pt pts)) )
 )
+
+;; 3
+
+(define (rate-points pts)
+	(map (lambda (pt)
+		(list (distance-product pt pts) pt)
+	) pts)
+)
+
