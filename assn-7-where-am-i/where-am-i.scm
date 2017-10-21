@@ -222,3 +222,11 @@
 		)
 	)
 )
+
+;; 2
+
+(define (distance-product pt pts)
+	(apply * (map (lambda (other-pt)
+		(dist pt other-pt)
+	) (remove pt pts)) )
+)
