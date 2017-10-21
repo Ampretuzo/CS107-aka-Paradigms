@@ -209,3 +209,16 @@
 ;; it to override exisiting definitions and including
 ;; the most recently implemented into the lot.
 ;;
+
+;; 1
+
+(define (intersection-points circles)
+	(if (null? circles) '()
+		(append 
+			(intersection-points (cdr circles)) 
+			(map (lambda (circle)
+				(intersect (car circles) circle) 
+			) (cdr circles))
+		)
+	)
+)
