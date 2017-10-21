@@ -218,9 +218,9 @@
 	(if (null? circles) '()
 		(append 
 			(intersection-points (cdr circles)) 
-			(map (lambda (circle)
+			(apply append (map (lambda (circle)
 				(intersect (car circles) circle) 
-			) (cdr circles))
+			) (cdr circles)) )
 		)
 	)
 )
@@ -279,3 +279,10 @@
 		(list (distance-product avg clumped) avg)
 	)
 )
+
+;; 7
+
+(define (best-estimate circles)
+	(average-point (clumped-points (intersection-points circles)))
+)
+
