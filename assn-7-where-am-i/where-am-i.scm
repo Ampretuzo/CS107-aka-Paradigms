@@ -286,3 +286,16 @@
 	(average-point (clumped-points (intersection-points circles)))
 )
 
+;; 8
+
+(define (where-am-i distances stars)
+	(quicksort 
+		(map (lambda (guess)
+			(best-estimate guess)
+		) (all-guesses distances stars) ) 
+		(lambda (guess1 guess2)
+			(< (car guess1) (car guess2))
+		)
+	)
+)
+
