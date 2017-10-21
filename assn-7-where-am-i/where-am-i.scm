@@ -136,11 +136,12 @@
 ;; recursion unwinds exactly one of the two lists gets a new element
 ;; cons'ed to the front of it.  
 ;; 
+;; update: made generic
 
-(define (partition pivot num-list)
+(define (partition pivot num-list comp)
   (if (null? num-list) '(() ())
-      (let ((split-of-rest (partition pivot (cdr num-list))))
-	(if (< (car num-list) pivot)
+      (let ((split-of-rest (partition pivot (cdr num-list) comp)))
+	(if (comp (car num-list) pivot)
 	    (list (cons (car num-list) (car split-of-rest)) (cadr split-of-rest))
 	    (list (car split-of-rest) (cons (car num-list) (car (cdr split-of-rest))))))))
 
@@ -155,13 +156,14 @@
 ;; We then recursively quicksort the two lists, and then splice everything
 ;; together in the proper order.
 ;;
+;; update: made generic
 
-(define (quicksort num-list)
-  (if (<= (length num-list) 1) num-list
-      (let ((split (partition (car num-list) (cdr num-list))))
-	(append (quicksort (car split)) 
-		(list (car num-list)) 
-		(quicksort (cadr split))))))
+(define (quicksort ls comp)
+  (if (<= (length ls) 1) ls
+      (let ((split (partition (car ls) (cdr ls) comp)))
+	(append (quicksort (car split) comp) 
+		(list (car ls)) 
+		(quicksort (cadr split) comp)))))
 
 ;;
 ;; Function: remove
@@ -239,3 +241,8 @@
 	) pts)
 )
 
+;; 4
+
+(define (sort-points ratings) 
+	(quicksort ratings (lambda (el1 el2) (< (car el1) (car el2)) ) )
+)
