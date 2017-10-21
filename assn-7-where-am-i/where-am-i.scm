@@ -257,7 +257,25 @@
 		))
 		(prefix-of-list 
 			clumped 
+;			TODO could get zero size list 
 			(quotient (length clumped) 2)
 		)
+	)
+)
+
+;; 6
+
+(define (average-point clumped)
+	(let ((
+			avg 
+			(scale 
+				(make-pt 
+					(apply + (map (lambda (pt) (x pt) ) clumped) )
+					(apply + (map (lambda (pt) (y pt) ) clumped) )
+				) 
+				(/ 1 (length clumped) )
+			) 
+		))
+		(list (distance-product avg clumped) avg)
 	)
 )
