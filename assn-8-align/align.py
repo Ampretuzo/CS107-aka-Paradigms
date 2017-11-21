@@ -9,10 +9,14 @@ def findOptimalAlignment(strand1, strand2):
 	# if one of the two strands is empty, then there is only
 	# one possible alignment, and of course it's optimal
 	if len(strand1) == 0: return {
-		'score': len(strand2) * -2
+		'score': len(strand2) * -2,
+		'strand1': ' ' * len(strand2),
+		'strand2': strand2
 	}
 	if len(strand2) == 0: return {
-		'score': len(strand1) * -2
+		'score': len(strand1) * -2,
+		'strand1': strand1,
+		'strand2': ' ' * len(strand1)
 	}
 
 	# There's the scenario where the two leading bases of
@@ -21,22 +25,30 @@ def findOptimalAlignment(strand1, strand2):
 	bestWith = findOptimalAlignment(strand1[1:], strand2[1:])
 	if strand1[0] == strand2[0]: 
 		return {
-			'score': bestWith['score'] + 1 # no benefit from making other recursive calls
+			'score': bestWith['score'] + 1, # no benefit from making other recursive calls
+			'strand1': strand1[0] + bestWith['strand1'],
+			'strand2': strand1[0] + bestWith['strand2']
 		}
 
 	bestWith['score'] -= 1
+	bestWith['strand1'] = strand1[0] + bestWith['strand1']
+	bestWith['strand2'] = strand2[0] + bestWith['strand2']
 	best = bestWith
 	
 	# It's possible that the leading base of strand1 best
 	# matches not the leading base of strand2, but the one after it.
 	bestWithout = findOptimalAlignment(strand1, strand2[1:])
 	bestWithout['score'] -= 2 # penalize for insertion of space
+	bestWithout['strand1'] = ' ' + bestWithout['strand1']
+	bestWithout['strand2'] = strand2[0] + bestWithout['strand2']
 	if bestWithout['score'] > best['score']:
 		best = bestWithout
 
 	# opposite scenario
 	bestWithout = findOptimalAlignment(strand1[1:], strand2)
 	bestWithout['score'] -= 2 # penalize for insertion of space	
+	bestWithout['strand1'] = strand1[0] + bestWithout['strand1']
+	bestWithout['strand2'] = ' ' + bestWithout['strand2']
 	if bestWithout['score'] > best['score']:
 		best = bestWithout
 
@@ -64,6 +76,21 @@ def generateRandomDNAStrand(minlength, maxlength):
 
 def printAlignment(score, out = sys.stdout):	
 	out.write("Optimal alignment score is " + str(score['score']) + "\n")
+	out.write('\n')
+	out.write('  +  ')
+	out.write(
+		''.join(map(lambda x: '1' if x[0] == x[1] and x[0] != ' ' and x[1] != ' ' else ' ', zip(score['strand1'], score['strand2']) ) )
+	)
+	out.write('\n')
+	out.write(' ' * 5)
+	out.write(str(score['strand1']) + "\n")
+	out.write(' ' * 5)
+	out.write(str(score['strand2']) + "\n")
+	out.write('  -  ')
+	out.write(
+		''.join(map(lambda x: '2' if x[0] == ' ' or x[1] == ' ' else '1' if x[0] != x[1] else ' ', zip(score['strand1'], score['strand2']) ) )
+	)
+	out.write('\n\n')
 
 # Unit test main in place to do little more than
 # exercise the above algorithm.  As written, it
