@@ -3,32 +3,49 @@
 import random # for seed, random
 import sys    # for stdout
 
+def generateCacheKeyFromStrands(strand1, strand2):
+	return strand1 + '$' + strand2
+
+def generateCacheKey(res):
+	return generateCacheKeyFromStrands(res['strand1'], res['strand2'] )
+
+def findOptimalAlignmentCached(strand1, strand2, cache):
+	cacheKey = generateCacheKeyFromStrands(strand1, strand2)
+	if cacheKey in cache: return cache[cacheKey]
+	res = findOptimalAlignment(strand1, strand2, cache)
+	cache[cacheKey] = res
+	return res
+
 # Computes the score of the optimal alignment of two DNA strands.
-def findOptimalAlignment(strand1, strand2):
+def findOptimalAlignment(strand1, strand2, cache):
 	
 	# if one of the two strands is empty, then there is only
-	# one possible alignment, and of course it's optimal
-	if len(strand1) == 0: return {
-		'score': len(strand2) * -2,
-		'strand1': ' ' * len(strand2),
-		'strand2': strand2
-	}
-	if len(strand2) == 0: return {
-		'score': len(strand1) * -2,
-		'strand1': strand1,
-		'strand2': ' ' * len(strand1)
-	}
+	# one possible alignment, and of course it's optimal.
+	# -- who needs cache for base case?
+	if len(strand1) == 0: 
+		return {
+			'score': len(strand2) * -2,
+			'strand1': ' ' * len(strand2),
+			'strand2': strand2
+		}
+	if len(strand2) == 0: 
+		return {
+			'score': len(strand1) * -2,
+			'strand1': strand1,
+			'strand2': ' ' * len(strand1)
+		}
 
 	# There's the scenario where the two leading bases of
 	# each strand are forced to align, regardless of whether or not
 	# they actually match.
-	bestWith = findOptimalAlignment(strand1[1:], strand2[1:])
+	bestWith = findOptimalAlignmentCached(strand1[1:], strand2[1:], cache) 
 	if strand1[0] == strand2[0]: 
-		return {
+		res = {
 			'score': bestWith['score'] + 1, # no benefit from making other recursive calls
 			'strand1': strand1[0] + bestWith['strand1'],
 			'strand2': strand1[0] + bestWith['strand2']
 		}
+		return res
 
 	bestWith['score'] -= 1
 	bestWith['strand1'] = strand1[0] + bestWith['strand1']
@@ -37,7 +54,7 @@ def findOptimalAlignment(strand1, strand2):
 	
 	# It's possible that the leading base of strand1 best
 	# matches not the leading base of strand2, but the one after it.
-	bestWithout = findOptimalAlignment(strand1, strand2[1:])
+	bestWithout = findOptimalAlignmentCached(strand1, strand2[1:], cache)
 	bestWithout['score'] -= 2 # penalize for insertion of space
 	bestWithout['strand1'] = ' ' + bestWithout['strand1']
 	bestWithout['strand2'] = strand2[0] + bestWithout['strand2']
@@ -45,7 +62,7 @@ def findOptimalAlignment(strand1, strand2):
 		best = bestWithout
 
 	# opposite scenario
-	bestWithout = findOptimalAlignment(strand1[1:], strand2)
+	bestWithout = findOptimalAlignmentCached(strand1[1:], strand2, cache)
 	bestWithout['score'] -= 2 # penalize for insertion of space	
 	bestWithout['strand1'] = strand1[0] + bestWithout['strand1']
 	bestWithout['strand2'] = ' ' + bestWithout['strand2']
@@ -107,11 +124,12 @@ def main():
 		sys.stdout.write("Generate random DNA strands? ")
 		answer = sys.stdin.readline()
 		if answer == "no\n": break
-		strand1 = generateRandomDNAStrand(8, 10)
-		strand2 = generateRandomDNAStrand(8, 10)
+		strand1 = generateRandomDNAStrand(50, 70)
+		strand2 = generateRandomDNAStrand(50, 70)
 		sys.stdout.write("Aligning these two strands: " + strand1 + "\n")
 		sys.stdout.write("                            " + strand2 + "\n")
-		alignment = findOptimalAlignment(strand1, strand2)
+		cache = {}
+		alignment = findOptimalAlignment(strand1, strand2, cache)
 		printAlignment(alignment)
 		
 if __name__ == "__main__":
